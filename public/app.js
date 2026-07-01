@@ -122,10 +122,14 @@ const elements = {
   walletModalOptions: document.querySelector("#walletModalOptions"),
   walletModalStatus: document.querySelector("#walletModalStatus"),
   walletModalDialog: document.querySelector(".wallet-dialog"),
+  mintSection: document.querySelector("#mint"),
+  mintFocusCard: document.querySelector("#mintFlow"),
+  mintRouteLinks: document.querySelectorAll("[data-mint-route-link]"),
   mintTriggers: document.querySelectorAll("[data-mint-trigger]"),
 };
 
 let walletChangeUnsubscribe = () => {};
+let mintRouteFocusTimeout = 0;
 
 function setStatus(message, isError = false) {
   elements.listingStatus.textContent = message;
@@ -194,6 +198,37 @@ function suiExplorerTxUrl(digest) {
 
 function nextFrame() {
   return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+function isMintRoute(pathname = window.location.pathname) {
+  return pathname.replace(/\/+$/, "") === "/mint";
+}
+
+function focusMintSection({ updateHash = false } = {}) {
+  const section = elements.mintSection;
+  const focusTarget = elements.mintFocusCard || section;
+  if (!section || !focusTarget) return;
+
+  if (updateHash && window.location.hash !== "#mint") {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#mint`);
+  }
+
+  window.requestAnimationFrame(() => {
+    focusTarget.focus({ preventScroll: true });
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.clearTimeout(mintRouteFocusTimeout);
+    focusTarget.classList.remove("is-route-focused");
+    window.requestAnimationFrame(() => {
+      focusTarget.classList.add("is-route-focused");
+      mintRouteFocusTimeout = window.setTimeout(() => focusTarget.classList.remove("is-route-focused"), 1800);
+    });
+  });
+}
+
+function focusMintRouteIfNeeded() {
+  if (isMintRoute()) {
+    focusMintSection({ updateHash: window.location.hash !== "#mint" });
+  }
 }
 
 function salePoolRange(pool) {
@@ -915,6 +950,16 @@ elements.mintTriggers.forEach((trigger) => {
   });
 });
 
+elements.mintRouteLinks.forEach((link) => {
+  link.addEventListener("click", (event) => {
+    const destination = new URL(link.href, window.location.href);
+    if (!isMintRoute() || !isMintRoute(destination.pathname)) return;
+
+    event.preventDefault();
+    focusMintSection({ updateHash: true });
+  });
+});
+
 elements.walletPickerModal.addEventListener("click", (event) => {
   if (event.target.closest("[data-wallet-picker-close]")) {
     closeWalletPicker();
@@ -943,6 +988,11 @@ refreshWallets();
 window.NFTreeWalletMint?.onWalletsChanged?.(setWallets);
 renderWalletState();
 updateMintButtons();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", focusMintRouteIfNeeded, { once: true });
+} else {
+  focusMintRouteIfNeeded();
+}
 
 loadSalePools();
 loadListings();

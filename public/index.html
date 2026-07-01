@@ -67,7 +67,7 @@
             Mint flow ready.
           </p>
         </div>
-        <a class="header-action" id="headerMintNowButton" href="/mint" data-mint-trigger aria-label="Mint an NFTree from the sales pool now">
+        <a class="header-action" id="headerMintNowButton" href="/mint#mint" data-mint-route-link aria-label="Go to NFTree mint flow">
           <span aria-hidden="true">
             <svg viewBox="0 0 20 20">
               <path d="M3 10h14" />
@@ -92,7 +92,7 @@
             Mint an NFTree from the sales pool right now, or preview listed NFTrees before buying on TradePort.
           </p>
           <div class="hero-actions" aria-label="Primary actions">
-            <a class="button button-primary" id="heroMintNowButton" href="/mint" data-mint-trigger>
+            <a class="button button-primary" id="heroMintNowButton" href="/mint#mint" data-mint-route-link>
               <span aria-hidden="true">
                 <svg viewBox="0 0 20 20">
                   <path d="M4 5h12l-1 10H5L4 5Z" />
@@ -121,7 +121,7 @@
             </a>
           </div>
           <div class="hero-quick-links" aria-label="NFTree quick links">
-            <a id="quickMintLink" href="/mint" data-mint-trigger>Mint NFTree</a>
+            <a id="quickMintLink" href="/mint#mint" data-mint-route-link>Mint NFTree</a>
             <a href="#nfts">Shop NFTrees</a>
             <a href="https://nftree.net/battle">Battle</a>
             <a href="https://treedrop.xyz" rel="noreferrer" target="_blank">Reward Dashboard</a>
@@ -192,7 +192,7 @@
             </p>
             <a class="button button-secondary" href="#listingGrid">Browse previews</a>
           </article>
-          <article class="acquisition-card accent">
+          <article class="acquisition-card accent" id="mintFlow" tabindex="-1">
             <span>Mint from sales pool now</span>
             <h3>Mint your NFTree right now</h3>
             <p>

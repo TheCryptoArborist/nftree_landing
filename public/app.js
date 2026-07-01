@@ -111,6 +111,7 @@ const elements = {
   refreshListings: document.querySelector("#refreshListings"),
   salePoolCount: document.querySelector("#salePoolCount"),
   salePoolGrid: document.querySelector("#salePoolGrid"),
+  saleMintNowButton: document.querySelector("#saleMintNowButton"),
   tradeportCollection: document.querySelector("#tradeportCollection"),
   selectedWalletLabel: document.querySelector("#selectedWalletLabel"),
   walletConnectedSummary: document.querySelector("#walletConnectedSummary"),
@@ -198,6 +199,10 @@ function suiExplorerTxUrl(digest) {
 
 function nextFrame() {
   return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 function isMintRoute(pathname = window.location.pathname) {
@@ -516,6 +521,55 @@ function activeSalePool() {
   );
 }
 
+function getActiveSigningState() {
+  const displayConnected = Boolean(state.connectedWallet && state.connectedAddress);
+  const fallback = {
+    accountAddress: state.connectedAddress,
+    accountExists: displayConnected,
+    canSign: displayConnected,
+    walletExists: displayConnected,
+    walletName: state.connectedWallet,
+  };
+
+  try {
+    const walletModule = window.NFTreeWalletMint;
+    if (typeof walletModule?.getConnectedWalletState !== "function") {
+      return {
+        displayConnected,
+        moduleState: fallback,
+        signingAccountAddress: state.connectedAddress,
+        signingReady: displayConnected,
+        signingStateSource: "ui-fallback",
+        signingWalletName: state.connectedWallet,
+      };
+    }
+
+    const moduleState = walletModule.getConnectedWalletState({
+      walletName: state.connectedWallet,
+      accountAddress: state.connectedAddress,
+    });
+
+    return {
+      displayConnected,
+      moduleState,
+      signingAccountAddress: moduleState.accountAddress || state.connectedAddress,
+      signingReady: displayConnected && moduleState.walletExists && moduleState.accountExists && moduleState.canSign,
+      signingStateSource: "wallet-module",
+      signingWalletName: moduleState.walletName || state.connectedWallet,
+    };
+  } catch (error) {
+    debugMint("Active signing state lookup failed", errorDebugDetails(error));
+    return {
+      displayConnected,
+      moduleState: fallback,
+      signingAccountAddress: state.connectedAddress,
+      signingReady: displayConnected,
+      signingStateSource: "ui-fallback-after-error",
+      signingWalletName: state.connectedWallet,
+    };
+  }
+}
+
 function mintReadiness() {
   if (state.isMinting) {
     return { ready: false, state: "pending", message: "NFTree mint transaction is pending in your wallet." };
@@ -540,12 +594,28 @@ function mintReadiness() {
 
 function updateMintButtons() {
   const readiness = mintReadiness();
+  const signingState = getActiveSigningState();
+  const priceLabel = formatMistAsSui(state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST);
   elements.mintTriggers.forEach((trigger) => {
     const disabled = !readiness.ready;
     trigger.classList.toggle("is-disabled", disabled);
     trigger.setAttribute("aria-disabled", disabled ? "true" : "false");
     trigger.dataset.mintState = readiness.state;
+    trigger.dataset.walletConnected = signingState.displayConnected ? "true" : "false";
+    trigger.dataset.signingReady = signingState.signingReady ? "true" : "false";
     trigger.title = disabled ? readiness.message : "";
+
+    if (state.isMinting) {
+      trigger.textContent = "Minting...";
+    } else if (!readiness.ready && readiness.state === "loading") {
+      trigger.textContent = "Checking sale pools";
+    } else if (!readiness.ready) {
+      trigger.textContent = readiness.message;
+    } else if (signingState.displayConnected) {
+      trigger.textContent = `Mint NFTree for ${priceLabel}`;
+    } else {
+      trigger.textContent = "Choose wallet and mint";
+    }
   });
 }
 
@@ -843,29 +913,57 @@ async function disconnectWallet() {
 }
 
 async function mintConnectedWallet() {
+  const signingState = getActiveSigningState();
+  const pool = activeSalePool();
   debugMint("Mint flow started", {
+    activePoolId: pool?.poolId || "",
     connectedWallet: state.connectedWallet,
     connectedAddress: state.connectedAddress,
+    displayConnected: signingState.displayConnected,
+    moduleState: signingState.moduleState,
     salePoolsLoaded: state.salePoolsLoaded,
+    selectedAccountAddress: signingState.signingAccountAddress,
+    selectedWalletName: signingState.signingWalletName,
+    signingReady: signingState.signingReady,
+    signingStateSource: signingState.signingStateSource,
   });
   const readiness = mintReadiness();
   if (!readiness.ready) {
-    debugMint("Mint blocked by readiness", readiness);
+    debugMint("Mint branch: blocked -> readiness", {
+      reason: readiness.message,
+      readiness,
+      salePoolsLoaded: state.salePoolsLoaded,
+      activePoolId: pool?.poolId || "",
+    });
     setWalletStatus(readiness.message, readiness.state === "pending" ? "connecting" : "error");
     elements.mintContractStatus.textContent = readiness.message;
     return;
   }
 
-  if (!state.connectedAddress || !state.connectedWallet) {
-    debugMint("Mint blocked by missing wallet", {
+  if (!signingState.displayConnected) {
+    debugMint("Mint branch: disconnected -> open picker", {
       connectedWallet: state.connectedWallet,
       connectedAddress: state.connectedAddress,
+      moduleState: signingState.moduleState,
     });
     openWalletPickerForMint();
     return;
   }
 
-  const pool = activeSalePool();
+  if (!signingState.signingReady) {
+    debugMint("Mint branch: connected -> preview with signing-state warning", {
+      connectedWallet: state.connectedWallet,
+      connectedAddress: state.connectedAddress,
+      moduleState: signingState.moduleState,
+    });
+  } else {
+    debugMint("Mint branch: connected -> preview", {
+      connectedWallet: state.connectedWallet,
+      connectedAddress: state.connectedAddress,
+      moduleState: signingState.moduleState,
+    });
+  }
+
   const priceLabel = formatMistAsSui(state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST);
   const previewMessage = mintPreviewMessage(priceLabel);
   state.isMinting = true;
@@ -876,8 +974,8 @@ async function mintConnectedWallet() {
   elements.mintContractStatus.textContent = previewMessage;
   debugMint("Mint preview shown", {
     message: previewMessage,
-    walletName: state.connectedWallet,
-    accountAddress: state.connectedAddress,
+    walletName: signingState.signingWalletName || state.connectedWallet,
+    accountAddress: signingState.signingAccountAddress || state.connectedAddress,
     walletChains: "See NFTree wallet bundle debug log for detected chains.",
     walletFeatures: "See NFTree wallet bundle debug log for detected features.",
     activePoolId: pool?.poolId || "",
@@ -887,6 +985,7 @@ async function mintConnectedWallet() {
     transactionTarget: `${state.salePoolStatus.latestPackageId || LATEST_PACKAGE_ID}::collection::purchase`,
   });
   await nextFrame();
+  await wait(450);
 
   try {
     const walletModule = getWalletModule();
@@ -895,8 +994,8 @@ async function mintConnectedWallet() {
     }
 
     const result = await walletModule.mintWithConnectedWallet({
-      walletName: state.connectedWallet,
-      accountAddress: state.connectedAddress,
+      walletName: signingState.signingWalletName || state.connectedWallet,
+      accountAddress: signingState.signingAccountAddress || state.connectedAddress,
       salePoolStatus: state.salePoolStatus,
     });
 
@@ -938,13 +1037,28 @@ elements.walletOptions.addEventListener("click", (event) => {
 elements.mintTriggers.forEach((trigger) => {
   trigger.addEventListener("click", (event) => {
     event.preventDefault();
+    const signingState = getActiveSigningState();
+    const readiness = mintReadiness();
+    const pool = activeSalePool();
     debugMint("Mint button clicked", {
+      activePoolId: pool?.poolId || "",
       id: trigger.id || "",
       label: trigger.textContent.trim().replace(/\s+/g, " "),
       href: trigger.getAttribute("href") || "",
       mintState: trigger.dataset.mintState || "",
+      salePoolLoaded: state.salePoolsLoaded,
+      selectedAccountAddress: signingState.signingAccountAddress,
+      selectedWalletName: signingState.signingWalletName,
+      signingModuleState: signingState.moduleState,
+      signingReady: signingState.signingReady,
+      uiDisplayConnected: signingState.displayConnected,
       connectedWallet: state.connectedWallet,
       connectedAddress: state.connectedAddress,
+      expectedBranch: !readiness.ready
+        ? `blocked -> ${readiness.message}`
+        : signingState.displayConnected
+          ? "connected -> preview"
+          : "disconnected -> open picker",
     });
     mintConnectedWallet();
   });

@@ -31,6 +31,7 @@ const USER_FACING_MESSAGES = Object.freeze({
 const client = new SuiJsonRpcClient({ network: "mainnet", url: SUI_RPC_URL });
 const walletsApi = getWallets();
 const connectedAccounts = new Map();
+let activeConnection = { accountAddress: "", walletName: "" };
 
 function errorDebugDetails(error) {
   if (!error) return {};
@@ -117,11 +118,32 @@ function getConnectedAccount(wallet, accountAddress) {
 function forgetConnectedAccount(walletName, accountAddress) {
   if (!accountAddress) return;
   connectedAccounts.delete(`${normalizedName(walletName)}:${accountAddress}`);
+  if (normalizedName(activeConnection.walletName) === normalizedName(walletName) && activeConnection.accountAddress === accountAddress) {
+    activeConnection = { accountAddress: "", walletName: "" };
+  }
 }
 
 function rememberConnectedAccount(walletName, account) {
   if (!account?.address) return;
   connectedAccounts.set(`${normalizedName(walletName)}:${account.address}`, account);
+  activeConnection = { accountAddress: account.address, walletName };
+}
+
+function getConnectedWalletState({ walletName, accountAddress } = {}) {
+  const effectiveWalletName = walletName || activeConnection.walletName;
+  const effectiveAccountAddress = accountAddress || activeConnection.accountAddress;
+  const wallet = findWallet(effectiveWalletName);
+  const account = wallet && effectiveAccountAddress ? getConnectedAccount(wallet, effectiveAccountAddress) : undefined;
+
+  return {
+    accountAddress: account?.address || "",
+    accountExists: Boolean(account?.address),
+    account: accountDebugDetails(account),
+    canSign: Boolean(wallet && account?.address && hasSigningFeature(wallet)),
+    walletExists: Boolean(wallet),
+    wallet: walletDebugDetails(wallet),
+    walletName: wallet?.name || effectiveWalletName || "",
+  };
 }
 
 function firstAvailablePool(salePoolStatus) {
@@ -457,6 +479,7 @@ window.NFTreeWalletMint = {
   connectWallet,
   connectAndMint,
   disconnectWallet,
+  getConnectedWalletState,
   messages: USER_FACING_MESSAGES,
   mintWithConnectedWallet,
   onConnectedWalletChange,

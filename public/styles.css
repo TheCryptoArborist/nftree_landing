@@ -982,10 +982,129 @@ h1 {
   color: var(--gold);
 }
 
+.wallet-picker-status.is-error,
+.wallet-modal-status.is-error {
+  color: #ffb0a8;
+}
+
 .mint-contract-status {
   margin: 8px 0 0;
   color: #d3e7fb;
   font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.wallet-modal[hidden] {
+  display: none;
+}
+
+.wallet-modal {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.wallet-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 7, 12, 0.78);
+  backdrop-filter: blur(7px);
+}
+
+.wallet-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(430px, 100%);
+  padding: 20px;
+  color: var(--text);
+  background:
+    linear-gradient(135deg, rgba(0, 241, 210, 0.12), rgba(255, 216, 75, 0.08)),
+    #061017;
+  border: 1px solid rgba(0, 241, 210, 0.34);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  outline: none;
+}
+
+.wallet-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.wallet-dialog-head span {
+  color: var(--gold);
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.wallet-dialog-head h2 {
+  margin: 5px 44px 0 0;
+  font-size: 1.25rem;
+  line-height: 1.15;
+}
+
+.wallet-modal-status {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.wallet-modal-status.is-ready {
+  color: var(--cyan);
+}
+
+.wallet-modal-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.wallet-modal-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 12px;
+  color: #dff8ff;
+  background: rgba(1, 10, 18, 0.9);
+  border: 1px solid rgba(114, 213, 226, 0.28);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 900;
+  text-align: left;
+}
+
+.wallet-modal-option:hover,
+.wallet-modal-option:focus-visible,
+.wallet-modal-option.is-selected {
+  border-color: rgba(255, 216, 75, 0.72);
+  box-shadow: 0 0 20px rgba(255, 216, 75, 0.18);
+  outline: none;
+}
+
+.wallet-empty-state {
+  padding: 14px;
+  background: rgba(1, 10, 18, 0.78);
+  border: 1px solid rgba(255, 176, 168, 0.34);
+  border-radius: 8px;
+}
+
+.wallet-empty-state strong {
+  display: block;
+  color: #ffddd9;
+}
+
+.wallet-empty-state p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
   line-height: 1.4;
 }
 

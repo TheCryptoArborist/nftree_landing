@@ -77,7 +77,12 @@ const state = {
   listings: [],
   rarity: "all",
   search: "",
+  wallets: [],
   selectedWallet: "",
+  connectedWallet: "",
+  connectedAddress: "",
+  isConnecting: false,
+  isMinting: false,
   salePoolStatus: fallbackSalePoolStatus,
 };
 
@@ -96,8 +101,13 @@ const elements = {
   tradeportCollection: document.querySelector("#tradeportCollection"),
   selectedWalletLabel: document.querySelector("#selectedWalletLabel"),
   walletConnectButton: document.querySelector("#walletConnectButton"),
-  walletOptions: document.querySelectorAll(".wallet-option"),
+  walletOptions: document.querySelector("#walletOptions"),
   walletPickerStatus: document.querySelector("#walletPickerStatus"),
+  walletPickerModal: document.querySelector("#walletPickerModal"),
+  walletModalOptions: document.querySelector("#walletModalOptions"),
+  walletModalStatus: document.querySelector("#walletModalStatus"),
+  walletModalDialog: document.querySelector(".wallet-dialog"),
+  walletOpenTriggers: document.querySelectorAll("[data-wallet-open]"),
 };
 
 function setStatus(message, isError = false) {
@@ -315,63 +325,277 @@ elements.listingSearch.addEventListener("input", (event) => {
 
 elements.refreshListings.addEventListener("click", loadListings);
 
-elements.walletOptions.forEach((button) => {
-  button.addEventListener("click", () => {
-    const walletName = button.dataset.wallet || "Selected wallet";
-    state.selectedWallet = walletName;
+function walletInitial(walletName) {
+  const compact = String(walletName || "Wallet").replace(/\s+wallet\b/i, "").trim();
+  if (/^sui$/i.test(compact)) return "SUI";
+  return compact.slice(0, 2).toUpperCase() || "W";
+}
 
-    elements.walletOptions.forEach((option) => {
-      const selected = option === button;
-      option.classList.toggle("is-selected", selected);
-      option.setAttribute("aria-pressed", selected ? "true" : "false");
-    });
+function walletErrorMessage(error, fallback) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (/reject|denied|cancel|closed/i.test(message)) {
+    return "Wallet connection was rejected. No mint transaction was started.";
+  }
+  if (/not detected/i.test(message)) {
+    return "That Sui wallet was not detected in this browser.";
+  }
+  return message || fallback;
+}
 
-    elements.selectedWalletLabel.textContent = walletName;
-    elements.walletConnectButton.disabled = false;
-    elements.walletConnectButton.textContent = "Connect";
-    const activePool = state.salePoolStatus.pools.find((pool) => pool.poolId === state.salePoolStatus.activePoolId);
-    const activePoolLabel = activePool?.label || "the active pool";
-    elements.walletPickerStatus.textContent = `${walletName} selected. Connect to mint from ${activePoolLabel}.`;
-    elements.walletPickerStatus.classList.add("is-ready");
-    elements.walletPickerStatus.classList.remove("is-connecting");
-  });
-});
+function getWalletModule() {
+  if (!window.NFTreeWalletMint) {
+    throw new Error("The NFTree wallet module is still loading. Refresh the page and try again.");
+  }
+  return window.NFTreeWalletMint;
+}
 
-elements.walletConnectButton.addEventListener("click", async () => {
-  if (!state.selectedWallet) return;
+function setWalletStatus(message, mode = "") {
+  elements.walletPickerStatus.textContent = message;
+  elements.walletPickerStatus.classList.toggle("is-ready", mode === "ready");
+  elements.walletPickerStatus.classList.toggle("is-connecting", mode === "connecting");
+  elements.walletPickerStatus.classList.toggle("is-error", mode === "error");
+}
 
-  elements.walletConnectButton.disabled = true;
-  elements.walletConnectButton.textContent = "Opening...";
-  elements.walletPickerStatus.textContent = `Opening ${state.selectedWallet} for a ${formatMistAsSui(state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST)} NFTree mint.`;
-  elements.mintContractStatus.textContent = `Mint transaction target: ${shortId(state.salePoolStatus.latestPackageId || LATEST_PACKAGE_ID)}::collection::purchase using ${state.salePoolStatus.activePoolLabel || "an active pool"}.`;
-  elements.walletPickerStatus.classList.remove("is-ready");
-  elements.walletPickerStatus.classList.add("is-connecting");
+function setModalStatus(message, mode = "") {
+  elements.walletModalStatus.textContent = message;
+  elements.walletModalStatus.classList.toggle("is-error", mode === "error");
+  elements.walletModalStatus.classList.toggle("is-ready", mode === "ready");
+}
+
+function updateWalletButton() {
+  if (state.isConnecting) {
+    elements.walletConnectButton.textContent = "Connecting...";
+    elements.walletConnectButton.disabled = true;
+    return;
+  }
+
+  if (state.isMinting) {
+    elements.walletConnectButton.textContent = "Minting...";
+    elements.walletConnectButton.disabled = true;
+    return;
+  }
+
+  elements.walletConnectButton.disabled = false;
+  elements.walletConnectButton.textContent = state.connectedAddress ? `Mint ${shortId(state.connectedAddress)}` : "Connect";
+}
+
+function setWallets(wallets) {
+  state.wallets = Array.isArray(wallets) ? wallets : [];
+  renderCompactWalletOptions();
+  renderWalletModalOptions();
+
+  if (!state.connectedAddress && !state.wallets.length) {
+    elements.selectedWalletLabel.textContent = "No wallet detected";
+    setWalletStatus("No Sui wallet detected. Install or unlock a Sui wallet, then try again.", "error");
+  } else if (!state.connectedAddress) {
+    elements.selectedWalletLabel.textContent = "No wallet selected";
+    setWalletStatus("Choose a Sui wallet before minting.");
+  }
+
+  updateWalletButton();
+}
+
+function refreshWallets() {
+  try {
+    const walletModule = getWalletModule();
+    const wallets = typeof walletModule.availableWallets === "function"
+      ? walletModule.availableWallets()
+      : (walletModule.availableWalletNames?.() || []).map((name) => ({ name }));
+    setWallets(wallets);
+  } catch (error) {
+    setWallets([]);
+    setWalletStatus(walletErrorMessage(error, "Wallet detection is not ready yet."), "error");
+  }
+}
+
+function renderCompactWalletOptions() {
+  if (!elements.walletOptions) return;
+
+  if (!state.wallets.length) {
+    elements.walletOptions.innerHTML = `
+      <button class="wallet-option wallet-option-empty" type="button" aria-pressed="false">
+        <span class="wallet-icon" aria-hidden="true">?</span>
+        <span>No wallet</span>
+      </button>
+    `;
+    return;
+  }
+
+  elements.walletOptions.innerHTML = state.wallets
+    .slice(0, 4)
+    .map((wallet) => {
+      const selected = wallet.name === state.selectedWallet || wallet.name === state.connectedWallet;
+      const walletName = String(wallet.name || "Sui wallet");
+      return `
+        <button class="wallet-option ${selected ? "is-selected" : ""}" type="button" data-wallet="${escapeHtml(walletName)}" aria-pressed="${selected ? "true" : "false"}">
+          <span class="wallet-icon" aria-hidden="true">${escapeHtml(walletInitial(walletName))}</span>
+          <span>${escapeHtml(walletName.replace(/\s+wallet\b/i, ""))}</span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function renderWalletModalOptions() {
+  if (!elements.walletModalOptions) return;
+
+  if (!state.wallets.length) {
+    elements.walletModalOptions.innerHTML = `
+      <div class="wallet-empty-state" role="status">
+        <strong>No Sui wallet detected</strong>
+        <p>Install or unlock a Sui-compatible wallet, then reopen this picker.</p>
+      </div>
+    `;
+    setModalStatus("No Sui wallet detected in this browser.", "error");
+    return;
+  }
+
+  elements.walletModalOptions.innerHTML = state.wallets
+    .map((wallet) => {
+      const walletName = String(wallet.name || "Sui wallet");
+      return `
+      <button class="wallet-modal-option ${walletName === state.selectedWallet ? "is-selected" : ""}" type="button" data-wallet="${escapeHtml(walletName)}">
+        <span class="wallet-icon" aria-hidden="true">${escapeHtml(walletInitial(walletName))}</span>
+        <span>${escapeHtml(walletName)}</span>
+      </button>
+    `;
+    })
+    .join("");
+}
+
+function openWalletPicker(walletName = "") {
+  refreshWallets();
+  if (walletName) state.selectedWallet = walletName;
+  renderCompactWalletOptions();
+  renderWalletModalOptions();
+
+  if (state.wallets.length) {
+    setModalStatus("Choose the Sui wallet to connect. Minting will not start until you press Mint after connecting.");
+  }
+
+  elements.walletPickerModal.hidden = false;
+  elements.walletModalDialog?.focus();
+}
+
+function closeWalletPicker() {
+  elements.walletPickerModal.hidden = true;
+}
+
+async function connectWallet(walletName) {
+  state.selectedWallet = walletName;
+  state.isConnecting = true;
+  updateWalletButton();
+  renderCompactWalletOptions();
+  renderWalletModalOptions();
+  setWalletStatus(`Opening ${walletName} to connect.`, "connecting");
+  setModalStatus(`Opening ${walletName}.`, "ready");
 
   try {
-    if (!window.NFTreeWalletMint?.connectAndMint) {
-      throw new Error("The NFTree wallet mint module is still loading. Refresh the page and try again.");
+    const walletModule = getWalletModule();
+    if (typeof walletModule.connectWallet !== "function") {
+      throw new Error("The NFTree wallet module does not expose a connect function yet. Refresh the page and try again.");
     }
 
-    const result = await window.NFTreeWalletMint.connectAndMint({
-      walletName: state.selectedWallet,
+    const result = await walletModule.connectWallet({ walletName });
+    state.connectedWallet = result.walletName;
+    state.connectedAddress = result.account;
+    elements.selectedWalletLabel.textContent = `${result.walletName} ${shortId(result.account)}`;
+    setWalletStatus(`Connected to ${result.walletName}: ${shortId(result.account)}. Press Mint NFTree to submit a transaction.`, "ready");
+    setModalStatus(`Connected to ${shortId(result.account)}. Close this picker and press Mint NFTree when ready.`, "ready");
+    elements.mintContractStatus.textContent = `Connected: ${shortId(result.account)}. Minting is ready but no transaction has been submitted.`;
+    closeWalletPicker();
+  } catch (error) {
+    const message = walletErrorMessage(error, "Wallet connection was not completed.");
+    setWalletStatus(message, "error");
+    setModalStatus(message, "error");
+    elements.mintContractStatus.textContent = "No mint transaction was completed.";
+  } finally {
+    state.isConnecting = false;
+    updateWalletButton();
+    renderCompactWalletOptions();
+    renderWalletModalOptions();
+  }
+}
+
+async function mintConnectedWallet() {
+  if (!state.connectedAddress || !state.connectedWallet) {
+    openWalletPicker();
+    return;
+  }
+
+  state.isMinting = true;
+  updateWalletButton();
+  setWalletStatus(`Opening ${state.connectedWallet} to approve a ${formatMistAsSui(state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST)} NFTree mint.`, "connecting");
+  elements.mintContractStatus.textContent = `Mint transaction target: ${shortId(state.salePoolStatus.latestPackageId || LATEST_PACKAGE_ID)}::collection::purchase using ${state.salePoolStatus.activePoolLabel || "an active pool"}.`;
+
+  try {
+    const walletModule = getWalletModule();
+    if (typeof walletModule.mintWithConnectedWallet !== "function") {
+      throw new Error("The NFTree wallet module cannot mint with the connected wallet yet. Refresh the page and try again.");
+    }
+
+    const result = await walletModule.mintWithConnectedWallet({
+      walletName: state.connectedWallet,
+      accountAddress: state.connectedAddress,
       salePoolStatus: state.salePoolStatus,
     });
 
-    elements.walletPickerStatus.textContent = `Mint submitted through ${result.walletName}.`;
+    setWalletStatus(`Mint submitted through ${result.walletName}.`, "ready");
     elements.mintContractStatus.textContent = `Transaction ${shortId(result.digest)} used ${result.poolLabel}. Your NFTree should appear after the transaction confirms.`;
-    elements.walletPickerStatus.classList.add("is-ready");
     await loadSalePools();
   } catch (error) {
-    elements.walletPickerStatus.textContent = error instanceof Error ? error.message : "Wallet mint was not completed.";
+    setWalletStatus(error instanceof Error ? error.message : "Wallet mint was not completed.", "error");
     elements.mintContractStatus.textContent = error?.digest
       ? `Transaction ${shortId(error.digest)} was submitted but did not mint an NFTree. No NFT was created.`
       : "No mint transaction was completed.";
   } finally {
-    elements.walletConnectButton.disabled = false;
-    elements.walletConnectButton.textContent = "Connect";
-    elements.walletPickerStatus.classList.remove("is-connecting");
+    state.isMinting = false;
+    updateWalletButton();
+  }
+}
+
+elements.walletOptions.addEventListener("click", (event) => {
+  const button = event.target.closest(".wallet-option");
+  if (!button) return;
+  openWalletPicker(button.dataset.wallet || "");
+});
+
+elements.walletOpenTriggers.forEach((trigger) => {
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    openWalletPicker();
+  });
+});
+
+elements.walletPickerModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-wallet-picker-close]")) {
+    closeWalletPicker();
+    return;
+  }
+
+  const walletButton = event.target.closest(".wallet-modal-option");
+  if (walletButton?.dataset.wallet) {
+    connectWallet(walletButton.dataset.wallet);
   }
 });
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !elements.walletPickerModal.hidden) {
+    closeWalletPicker();
+  }
+});
+
+elements.walletConnectButton.addEventListener("click", () => {
+  if (state.connectedAddress) {
+    mintConnectedWallet();
+    return;
+  }
+
+  openWalletPicker();
+});
+
+refreshWallets();
+window.NFTreeWalletMint?.onWalletsChanged?.(setWallets);
 
 loadSalePools();
 loadListings();

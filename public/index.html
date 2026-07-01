@@ -35,7 +35,7 @@
             <span>Wallet</span>
             <strong id="selectedWalletLabel">No wallet selected</strong>
           </div>
-          <div class="wallet-options" role="group" aria-label="Wallet options">
+          <div class="wallet-options" id="walletOptions" role="group" aria-label="Wallet options">
             <button class="wallet-option" type="button" data-wallet="Slush Wallet" aria-pressed="false">
               <span class="wallet-icon" aria-hidden="true">S</span>
               <span>Slush</span>
@@ -53,7 +53,7 @@
               <span>Phantom</span>
             </button>
           </div>
-          <button class="button button-primary mint-now-button wallet-connect-button" id="walletConnectButton" type="button" disabled>
+          <button class="button button-primary mint-now-button wallet-connect-button" id="walletConnectButton" type="button">
             Connect
           </button>
           <p class="wallet-picker-status" id="walletPickerStatus" aria-live="polite">
@@ -206,7 +206,7 @@
               </div>
             </div>
             <div class="sale-pool-grid" id="salePoolGrid" aria-label="Configured NFTree sale pools"></div>
-            <a class="button button-primary mint-now-button" href="#walletPicker">Choose wallet and mint</a>
+            <a class="button button-primary mint-now-button" href="#walletPicker" data-wallet-open>Choose wallet and mint</a>
           </article>
         </div>
 
@@ -295,6 +295,26 @@
       <span>NFTree</span>
       <a href="https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items" rel="noreferrer" target="_blank">TradePort collection</a>
     </footer>
+
+    <div class="wallet-modal" id="walletPickerModal" hidden>
+      <div class="wallet-modal-backdrop" data-wallet-picker-close></div>
+      <section class="wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="walletPickerTitle" tabindex="-1">
+        <button class="icon-button wallet-modal-close" type="button" data-wallet-picker-close aria-label="Close wallet picker">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M5 5l10 10" />
+            <path d="M15 5 5 15" />
+          </svg>
+        </button>
+        <div class="wallet-dialog-head">
+          <span>Wallet</span>
+          <h2 id="walletPickerTitle">Choose a Sui wallet</h2>
+        </div>
+        <div class="wallet-modal-status" id="walletModalStatus" aria-live="polite">
+          Detecting installed Sui wallets.
+        </div>
+        <div class="wallet-modal-options" id="walletModalOptions" role="list"></div>
+      </section>
+    </div>
 
     <script src="/assets/nftree-wallet-mint.js"></script>
     <script type="module" src="/app.js"></script>

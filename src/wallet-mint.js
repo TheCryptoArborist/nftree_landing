@@ -29,6 +29,14 @@ function hasSigningFeature(wallet) {
   return Boolean(wallet?.features?.[SuiSignAndExecuteTransaction] || wallet?.features?.[SuiSignAndExecuteTransactionBlock]);
 }
 
+function hasConnectFeature(wallet) {
+  return Boolean(wallet?.features?.[StandardConnect]);
+}
+
+function mintCapableWallets() {
+  return walletsApi.get().filter((wallet) => walletSupportsSui(wallet) && hasConnectFeature(wallet) && hasSigningFeature(wallet));
+}
+
 function normalizedName(value) {
   return String(value || "")
     .toLowerCase()
@@ -38,7 +46,7 @@ function normalizedName(value) {
 
 function findWallet(walletName) {
   const target = normalizedName(walletName);
-  const wallets = walletsApi.get().filter((wallet) => walletSupportsSui(wallet) && hasSigningFeature(wallet));
+  const wallets = mintCapableWallets();
   return (
     wallets.find((wallet) => normalizedName(wallet.name) === target) ||
     wallets.find((wallet) => normalizedName(wallet.name).includes(target) || target.includes(normalizedName(wallet.name))) ||
@@ -48,6 +56,12 @@ function findWallet(walletName) {
 
 function getMainnetAccount(accounts) {
   return accounts.find((account) => account.chains?.includes(MAINNET_CHAIN)) || accounts[0];
+}
+
+function getConnectedAccount(wallet, accountAddress) {
+  const accounts = Array.from(wallet?.accounts || []);
+  const exact = accounts.find((account) => account.address === accountAddress && account.chains?.includes(MAINNET_CHAIN));
+  return exact || accounts.find((account) => account.address === accountAddress) || getMainnetAccount(accounts);
 }
 
 function firstAvailablePool(salePoolStatus) {
@@ -183,10 +197,10 @@ async function signAndExecute(wallet, account, transaction) {
   throw new Error(`${wallet.name} does not support Sui transaction signing.`);
 }
 
-async function connectAndMint({ walletName, salePoolStatus }) {
+async function connectWalletInternal(walletName) {
   const wallet = findWallet(walletName);
   if (!wallet) {
-    throw new Error(`${walletName} was not detected in this browser.`);
+    throw new Error(`${walletName || "That wallet"} was not detected in this browser.`);
   }
 
   const connectFeature = wallet.features[StandardConnect];
@@ -200,6 +214,18 @@ async function connectAndMint({ walletName, salePoolStatus }) {
     throw new Error(`${wallet.name} did not return a Sui mainnet account.`);
   }
 
+  return { wallet, account };
+}
+
+async function connectWallet({ walletName }) {
+  const { wallet, account } = await connectWalletInternal(walletName);
+  return {
+    account: account.address,
+    walletName: wallet.name,
+  };
+}
+
+async function mintWithWalletAccount({ wallet, account, salePoolStatus }) {
   const pool = firstAvailablePool(salePoolStatus);
   const mintPriceMist = BigInt(salePoolStatus?.mintPriceMist || FALLBACK_PRICE_MIST);
   await assertMintBalance(account, mintPriceMist);
@@ -224,14 +250,55 @@ async function connectAndMint({ walletName, salePoolStatus }) {
   };
 }
 
+async function mintWithConnectedWallet({ walletName, accountAddress, salePoolStatus }) {
+  const wallet = findWallet(walletName);
+  if (!wallet) {
+    throw new Error(`${walletName || "That wallet"} was not detected in this browser.`);
+  }
+
+  const account = getConnectedAccount(wallet, accountAddress);
+  if (!account?.address) {
+    throw new Error(`${wallet.name} is not connected. Connect the wallet before minting.`);
+  }
+
+  return mintWithWalletAccount({ wallet, account, salePoolStatus });
+}
+
+async function connectAndMint({ walletName, salePoolStatus }) {
+  const { wallet, account } = await connectWalletInternal(walletName);
+  return mintWithWalletAccount({ wallet, account, salePoolStatus });
+}
+
+function availableWallets() {
+  return mintCapableWallets().map((wallet) => ({
+    name: wallet.name,
+    icon: typeof wallet.icon === "string" ? wallet.icon : "",
+  }));
+}
+
 function availableWalletNames() {
-  return walletsApi
-    .get()
-    .filter((wallet) => walletSupportsSui(wallet) && hasSigningFeature(wallet))
-    .map((wallet) => wallet.name);
+  return availableWallets().map((wallet) => wallet.name);
+}
+
+function onWalletsChanged(callback) {
+  if (typeof callback !== "function") return () => {};
+
+  const emit = () => callback(availableWallets());
+  const unsubscribeRegister = walletsApi.on?.("register", emit);
+  const unsubscribeUnregister = walletsApi.on?.("unregister", emit);
+  queueMicrotask(emit);
+
+  return () => {
+    unsubscribeRegister?.();
+    unsubscribeUnregister?.();
+  };
 }
 
 window.NFTreeWalletMint = {
+  availableWallets,
   availableWalletNames,
+  connectWallet,
   connectAndMint,
+  mintWithConnectedWallet,
+  onWalletsChanged,
 };

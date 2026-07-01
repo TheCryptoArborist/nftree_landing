@@ -948,6 +948,41 @@ h1 {
   font-size: 0.66rem;
 }
 
+.wallet-connected-summary {
+  margin: 10px 0 0;
+  color: var(--cyan);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.top-wallet-strip .wallet-connected-summary {
+  flex: 0 1 auto;
+  min-width: 112px;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+}
+
+.wallet-disconnect-button {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 8px;
+  font-size: 0.78rem;
+}
+
+.top-wallet-strip .wallet-disconnect-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 30px;
+  margin-top: 0;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+}
+
 .wallet-connect-button:disabled {
   color: rgba(244, 251, 255, 0.62);
   background: rgba(8, 15, 24, 0.86);

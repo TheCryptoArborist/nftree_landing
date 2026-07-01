@@ -82,6 +82,7 @@ const state = {
   connectedWallet: "",
   connectedAddress: "",
   isConnecting: false,
+  isDisconnecting: false,
   isMinting: false,
   salePoolsLoaded: false,
   salePoolStatus: fallbackSalePoolStatus,
@@ -101,7 +102,9 @@ const elements = {
   salePoolGrid: document.querySelector("#salePoolGrid"),
   tradeportCollection: document.querySelector("#tradeportCollection"),
   selectedWalletLabel: document.querySelector("#selectedWalletLabel"),
+  walletConnectedSummary: document.querySelector("#walletConnectedSummary"),
   walletConnectButton: document.querySelector("#walletConnectButton"),
+  walletDisconnectButton: document.querySelector("#walletDisconnectButton"),
   walletOptions: document.querySelector("#walletOptions"),
   walletPickerStatus: document.querySelector("#walletPickerStatus"),
   walletPickerModal: document.querySelector("#walletPickerModal"),
@@ -110,6 +113,8 @@ const elements = {
   walletModalDialog: document.querySelector(".wallet-dialog"),
   mintTriggers: document.querySelectorAll("[data-mint-trigger]"),
 };
+
+let walletChangeUnsubscribe = () => {};
 
 function setStatus(message, isError = false) {
   elements.listingStatus.textContent = message;
@@ -129,6 +134,12 @@ function shortId(value) {
   const id = String(value || "");
   if (id.length <= 14) return id;
   return `${id.slice(0, 8)}...${id.slice(-6)}`;
+}
+
+function shortenAddress(address) {
+  const value = String(address || "");
+  if (value.length <= 14) return value;
+  return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
 function formatInteger(value) {
@@ -424,9 +435,43 @@ function updateMintButtons() {
   });
 }
 
+function renderWalletState() {
+  const isConnected = Boolean(state.connectedAddress && state.connectedWallet);
+  const connectedText = isConnected
+    ? `Connected: ${shortenAddress(state.connectedAddress)}`
+    : "";
+  const walletLabel = isConnected ? `${state.connectedWallet} / ${shortenAddress(state.connectedAddress)}` : "";
+
+  if (isConnected) {
+    elements.selectedWalletLabel.textContent = walletLabel;
+    elements.walletConnectedSummary.textContent = connectedText;
+    elements.walletConnectedSummary.hidden = false;
+    elements.walletDisconnectButton.hidden = false;
+    elements.walletDisconnectButton.disabled = state.isDisconnecting || state.isMinting;
+    return;
+  }
+
+  elements.walletConnectedSummary.textContent = "";
+  elements.walletConnectedSummary.hidden = true;
+  elements.walletDisconnectButton.hidden = true;
+  elements.walletDisconnectButton.disabled = true;
+
+  if (!state.wallets.length) {
+    elements.selectedWalletLabel.textContent = "No wallet detected";
+  } else {
+    elements.selectedWalletLabel.textContent = "No wallet selected";
+  }
+}
+
 function updateWalletButton() {
   if (state.isConnecting) {
     elements.walletConnectButton.textContent = "Connecting...";
+    elements.walletConnectButton.disabled = true;
+    return;
+  }
+
+  if (state.isDisconnecting) {
+    elements.walletConnectButton.textContent = "Disconnecting...";
     elements.walletConnectButton.disabled = true;
     return;
   }
@@ -437,8 +482,8 @@ function updateWalletButton() {
     return;
   }
 
-  elements.walletConnectButton.disabled = false;
   elements.walletConnectButton.textContent = state.connectedAddress ? "Connected" : "Connect";
+  elements.walletConnectButton.disabled = Boolean(state.connectedAddress);
 }
 
 function setWallets(wallets) {
@@ -447,13 +492,12 @@ function setWallets(wallets) {
   renderWalletModalOptions();
 
   if (!state.connectedAddress && !state.wallets.length) {
-    elements.selectedWalletLabel.textContent = "No wallet detected";
     setWalletStatus("No Sui wallet detected. Install or unlock a Sui wallet, then try again.", "error");
   } else if (!state.connectedAddress) {
-    elements.selectedWalletLabel.textContent = "No wallet selected";
     setWalletStatus("Choose a Sui wallet before minting.");
   }
 
+  renderWalletState();
   updateWalletButton();
   updateMintButtons();
 }
@@ -552,10 +596,59 @@ function closeWalletPicker() {
   elements.walletPickerModal.hidden = true;
 }
 
+function clearConnectedWalletState() {
+  walletChangeUnsubscribe?.();
+  walletChangeUnsubscribe = () => {};
+  state.connectedWallet = "";
+  state.connectedAddress = "";
+  state.selectedWallet = "";
+}
+
+function subscribeToConnectedWallet() {
+  walletChangeUnsubscribe?.();
+  walletChangeUnsubscribe = () => {};
+
+  const walletModule = window.NFTreeWalletMint;
+  if (typeof walletModule?.onConnectedWalletChange !== "function" || !state.connectedWallet || !state.connectedAddress) {
+    return;
+  }
+
+  walletChangeUnsubscribe = walletModule.onConnectedWalletChange(
+    {
+      walletName: state.connectedWallet,
+      accountAddress: state.connectedAddress,
+    },
+    (event) => {
+      if (!event?.connected) {
+        clearConnectedWalletState();
+        renderWalletState();
+        updateWalletButton();
+        updateMintButtons();
+        renderCompactWalletOptions();
+        renderWalletModalOptions();
+        setWalletStatus("Wallet disconnected.", "ready");
+        elements.mintContractStatus.textContent = "Wallet disconnected.";
+        return;
+      }
+
+      state.connectedWallet = event.walletName || state.connectedWallet;
+      state.connectedAddress = event.account || state.connectedAddress;
+      state.selectedWallet = state.connectedWallet;
+      renderWalletState();
+      updateWalletButton();
+      updateMintButtons();
+      renderCompactWalletOptions();
+      renderWalletModalOptions();
+      setWalletStatus(`Connected to ${state.connectedWallet}: ${shortenAddress(state.connectedAddress)}.`, "ready");
+    },
+  );
+}
+
 async function connectWallet(walletName) {
   state.selectedWallet = walletName;
   state.isConnecting = true;
   updateWalletButton();
+  renderWalletState();
   renderCompactWalletOptions();
   renderWalletModalOptions();
   setWalletStatus(`Opening ${walletName} to connect.`, "connecting");
@@ -570,10 +663,12 @@ async function connectWallet(walletName) {
     const result = await walletModule.connectWallet({ walletName });
     state.connectedWallet = result.walletName;
     state.connectedAddress = result.account;
-    elements.selectedWalletLabel.textContent = `${result.walletName} ${shortId(result.account)}`;
-    setWalletStatus(`Connected to ${result.walletName}: ${shortId(result.account)}. Press Mint NFTree to submit a transaction.`, "ready");
-    setModalStatus(`Connected to ${shortId(result.account)}. Close this picker and press Mint NFTree when ready.`, "ready");
-    elements.mintContractStatus.textContent = `Connected: ${shortId(result.account)}. Minting is ready but no transaction has been submitted.`;
+    state.selectedWallet = result.walletName;
+    subscribeToConnectedWallet();
+    renderWalletState();
+    setWalletStatus(`Connected to ${result.walletName}: ${shortenAddress(result.account)}. Press Mint NFTree to submit a transaction.`, "ready");
+    setModalStatus(`Connected to ${shortenAddress(result.account)}. Close this picker and press Mint NFTree when ready.`, "ready");
+    elements.mintContractStatus.textContent = `Connected: ${shortenAddress(result.account)}. Minting is ready but no transaction has been submitted.`;
     closeWalletPicker();
   } catch (error) {
     const message = walletErrorMessage(error, "Wallet connection was not completed.");
@@ -582,10 +677,41 @@ async function connectWallet(walletName) {
     elements.mintContractStatus.textContent = "No mint transaction was completed.";
   } finally {
     state.isConnecting = false;
+    renderWalletState();
     updateWalletButton();
     updateMintButtons();
     renderCompactWalletOptions();
     renderWalletModalOptions();
+  }
+}
+
+async function disconnectWallet() {
+  const walletName = state.connectedWallet;
+  const accountAddress = state.connectedAddress;
+
+  state.isDisconnecting = true;
+  renderWalletState();
+  updateWalletButton();
+  updateMintButtons();
+
+  try {
+    const walletModule = window.NFTreeWalletMint;
+    if (typeof walletModule?.disconnectWallet === "function" && (walletName || accountAddress)) {
+      await walletModule.disconnectWallet({ walletName, accountAddress });
+    }
+  } catch (error) {
+    console.warn("NFTree wallet disconnect failed; clearing local wallet state.", error);
+  } finally {
+    clearConnectedWalletState();
+    state.isDisconnecting = false;
+    closeWalletPicker();
+    renderWalletState();
+    updateWalletButton();
+    updateMintButtons();
+    renderCompactWalletOptions();
+    renderWalletModalOptions();
+    setWalletStatus("Wallet disconnected.", "ready");
+    elements.mintContractStatus.textContent = "Wallet disconnected.";
   }
 }
 
@@ -605,6 +731,7 @@ async function mintConnectedWallet() {
   const priceLabel = formatMistAsSui(state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST);
   const previewMessage = `You are about to mint 1 NFTree for ${priceLabel}.`;
   state.isMinting = true;
+  renderWalletState();
   updateWalletButton();
   updateMintButtons();
   setWalletStatus(previewMessage, "connecting");
@@ -639,6 +766,7 @@ async function mintConnectedWallet() {
       : message;
   } finally {
     state.isMinting = false;
+    renderWalletState();
     updateWalletButton();
     updateMintButtons();
   }
@@ -679,8 +807,11 @@ elements.walletConnectButton.addEventListener("click", () => {
   openWalletPicker();
 });
 
+elements.walletDisconnectButton.addEventListener("click", disconnectWallet);
+
 refreshWallets();
 window.NFTreeWalletMint?.onWalletsChanged?.(setWallets);
+renderWalletState();
 updateMintButtons();
 
 loadSalePools();

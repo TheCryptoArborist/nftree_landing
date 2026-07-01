@@ -2,6 +2,8 @@ import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import { Transaction } from "@mysten/sui/transactions";
 import {
   StandardConnect,
+  StandardDisconnect,
+  StandardEvents,
   SuiSignAndExecuteTransaction,
   SuiSignAndExecuteTransactionBlock,
   getWallets,
@@ -66,6 +68,16 @@ function getConnectedAccount(wallet, accountAddress) {
   const accounts = Array.from(wallet?.accounts || []);
   const exact = accounts.find((account) => account.address === accountAddress && account.chains?.includes(MAINNET_CHAIN));
   return exact || accounts.find((account) => account.address === accountAddress) || getMainnetAccount(accounts);
+}
+
+function forgetConnectedAccount(walletName, accountAddress) {
+  if (!accountAddress) return;
+  connectedAccounts.delete(`${normalizedName(walletName)}:${accountAddress}`);
+}
+
+function rememberConnectedAccount(walletName, account) {
+  if (!account?.address) return;
+  connectedAccounts.set(`${normalizedName(walletName)}:${account.address}`, account);
 }
 
 function firstAvailablePool(salePoolStatus) {
@@ -223,7 +235,7 @@ async function connectWalletInternal(walletName) {
 
 async function connectWallet({ walletName }) {
   const { wallet, account } = await connectWalletInternal(walletName);
-  connectedAccounts.set(`${normalizedName(wallet.name)}:${account.address}`, account);
+  rememberConnectedAccount(wallet.name, account);
   return {
     account: account.address,
     walletName: wallet.name,
@@ -271,8 +283,47 @@ async function mintWithConnectedWallet({ walletName, accountAddress, salePoolSta
 
 async function connectAndMint({ walletName, salePoolStatus }) {
   const { wallet, account } = await connectWalletInternal(walletName);
-  connectedAccounts.set(`${normalizedName(wallet.name)}:${account.address}`, account);
+  rememberConnectedAccount(wallet.name, account);
   return mintWithWalletAccount({ wallet, account, salePoolStatus });
+}
+
+async function disconnectWallet({ walletName, accountAddress } = {}) {
+  const wallet = findWallet(walletName);
+  try {
+    const disconnectFeature = wallet?.features?.[StandardDisconnect];
+    if (disconnectFeature?.disconnect) {
+      await disconnectFeature.disconnect();
+    }
+  } finally {
+    forgetConnectedAccount(wallet?.name || walletName, accountAddress);
+  }
+
+  return {
+    walletName: wallet?.name || walletName || "",
+    disconnected: true,
+  };
+}
+
+function onConnectedWalletChange({ walletName, accountAddress }, callback) {
+  if (typeof callback !== "function") return () => {};
+
+  const wallet = findWallet(walletName);
+  const on = wallet?.features?.[StandardEvents]?.on;
+  if (!on) return () => {};
+
+  return on("change", (properties) => {
+    if (!Object.hasOwn(properties, "accounts")) return;
+
+    const account = getMainnetAccount(Array.from(properties.accounts || []));
+    if (!account?.address) {
+      forgetConnectedAccount(wallet.name, accountAddress);
+      callback({ connected: false, walletName: wallet.name, account: "" });
+      return;
+    }
+
+    rememberConnectedAccount(wallet.name, account);
+    callback({ connected: true, walletName: wallet.name, account: account.address });
+  });
 }
 
 function availableWallets() {
@@ -305,6 +356,8 @@ window.NFTreeWalletMint = {
   availableWalletNames,
   connectWallet,
   connectAndMint,
+  disconnectWallet,
   mintWithConnectedWallet,
+  onConnectedWalletChange,
   onWalletsChanged,
 };

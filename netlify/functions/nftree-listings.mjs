@@ -231,6 +231,5 @@ export default async (request) => {
 };
 
 export const config = {
-  path: "/api/nftree-listings",
   method: ["GET", "OPTIONS"],
 };

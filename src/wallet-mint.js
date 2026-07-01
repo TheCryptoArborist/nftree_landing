@@ -16,10 +16,54 @@ const FALLBACK_PRICE_MIST = "25000000000";
 const FALLBACK_PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5";
 const FALLBACK_MINT_CONFIG_ID = "0xe83616020f61f73b30c40fd3f888ed397626afd071bd4666374c306d8e98b06b";
 const GAS_BUDGET_MIST = 120_000_000n;
+const DEBUG_MINT = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debugMint") === "1";
+const USER_FACING_MESSAGES = Object.freeze({
+  walletDisconnected: "Wallet disconnected.",
+  connectBeforeMinting: "Connect a Sui wallet before minting.",
+  mintPreview25Sui: "You are about to mint 1 NFTree for 25 SUI.",
+  salePoolFailed: "Sale pool data failed to load.",
+  noActivePool: "No active NFTree sale pool found.",
+  insufficientSui: "Insufficient SUI balance for 25 SUI mint plus gas.",
+  walletSigningCancelled: "Wallet signing was cancelled.",
+  unsupportedSigning: "Wallet does not support Sui transaction signing.",
+});
 
 const client = new SuiJsonRpcClient({ network: "mainnet", url: SUI_RPC_URL });
 const walletsApi = getWallets();
 const connectedAccounts = new Map();
+
+function errorDebugDetails(error) {
+  if (!error) return {};
+  return {
+    name: error.name || "",
+    message: error.message || String(error),
+    code: error.code || "",
+    cause: error.cause ? String(error.cause?.message || error.cause) : "",
+    stack: error.stack || "",
+    digest: error.digest || "",
+  };
+}
+
+function debugMint(label, details = {}) {
+  if (!DEBUG_MINT) return;
+  console.info("[NFTree mint debug]", label, details);
+}
+
+function walletDebugDetails(wallet) {
+  return {
+    name: wallet?.name || "",
+    chains: Array.from(wallet?.chains || []),
+    features: Object.keys(wallet?.features || {}),
+  };
+}
+
+function accountDebugDetails(account) {
+  return {
+    address: account?.address || "",
+    chains: Array.from(account?.chains || []),
+    features: Array.from(account?.features || []),
+  };
+}
 
 function walletSupportsSui(wallet) {
   return (
@@ -154,13 +198,13 @@ async function assertMintBalance(account, mintPriceMist) {
 
 function humanizeTransactionError(message) {
   if (String(message || "").includes("InsufficientCoinBalance")) {
-    return `The connected wallet does not have enough spendable SUI for the 25 SUI NFTree mint plus gas. Add SUI, merge SUI coins in the wallet, or switch wallets and try again.`;
+    return `${USER_FACING_MESSAGES.insufficientSui} Add SUI, merge SUI coins in the wallet, or switch wallets and try again.`;
   }
   return message || "The wallet submitted the transaction, but it did not complete.";
 }
 
 function buildPurchaseTransaction({ account, pool, salePoolStatus }) {
-  if (!pool?.poolId) throw new Error("No NFTree sale pool is available for minting.");
+  if (!pool?.poolId) throw new Error(USER_FACING_MESSAGES.noActivePool);
 
   const tx = new Transaction();
   tx.setSender(account.address);
@@ -170,9 +214,20 @@ function buildPurchaseTransaction({ account, pool, salePoolStatus }) {
   const latestPackageId = salePoolStatus?.latestPackageId || FALLBACK_PACKAGE_ID;
   const mintConfigId = salePoolStatus?.mintConfigId || FALLBACK_MINT_CONFIG_ID;
   const [payment] = tx.splitCoins(tx.gas, [tx.pure.u64(mintPriceMist)]);
+  const target = `${latestPackageId}::collection::purchase`;
+
+  debugMint("Build NFTree purchase transaction", {
+    account: account.address,
+    poolId: pool.poolId,
+    poolLabel: pool.label || "",
+    mintConfigId,
+    mintPriceMist: mintPriceMist.toString(),
+    transactionTarget: target,
+    chain: MAINNET_CHAIN,
+  });
 
   tx.moveCall({
-    target: `${latestPackageId}::collection::purchase`,
+    target,
     arguments: [tx.object(pool.poolId), payment, tx.object(mintConfigId)],
   });
 
@@ -186,6 +241,13 @@ async function signAndExecute(wallet, account, transaction) {
 
   const modernFeature = wallet.features[SuiSignAndExecuteTransaction];
   if (modernFeature) {
+    debugMint("Wallet signing method selected", {
+      method: SuiSignAndExecuteTransaction,
+      chain: MAINNET_CHAIN,
+      wallet: walletDebugDetails(wallet),
+      account: accountDebugDetails(account),
+      transactionHasToJSON: typeof transactionWrapper.toJSON === "function",
+    });
     return modernFeature.signAndExecuteTransaction({
       account,
       chain: MAINNET_CHAIN,
@@ -199,6 +261,13 @@ async function signAndExecute(wallet, account, transaction) {
 
   const legacyFeature = wallet.features[SuiSignAndExecuteTransactionBlock];
   if (legacyFeature) {
+    debugMint("Wallet signing method selected", {
+      method: SuiSignAndExecuteTransactionBlock,
+      chain: MAINNET_CHAIN,
+      wallet: walletDebugDetails(wallet),
+      account: accountDebugDetails(account),
+      transactionHasToJSON: typeof transactionWrapper.toJSON === "function",
+    });
     return legacyFeature.signAndExecuteTransactionBlock({
       account,
       chain: MAINNET_CHAIN,
@@ -210,7 +279,7 @@ async function signAndExecute(wallet, account, transaction) {
     });
   }
 
-  throw new Error(`${wallet.name} does not support Sui transaction signing.`);
+  throw new Error(`${USER_FACING_MESSAGES.unsupportedSigning} ${wallet.name} cannot submit this NFTree mint.`);
 }
 
 async function connectWalletInternal(walletName) {
@@ -218,6 +287,7 @@ async function connectWalletInternal(walletName) {
   if (!wallet) {
     throw new Error(`${walletName || "That wallet"} was not detected in this browser.`);
   }
+  debugMint("Wallet detected for connect", walletDebugDetails(wallet));
 
   const connectFeature = wallet.features[StandardConnect];
   if (!connectFeature) {
@@ -230,21 +300,41 @@ async function connectWalletInternal(walletName) {
     throw new Error(`${wallet.name} did not return a Sui mainnet account.`);
   }
 
+  debugMint("Wallet connected account selected", {
+    wallet: walletDebugDetails(wallet),
+    account: accountDebugDetails(account),
+  });
+
   return { wallet, account };
 }
 
 async function connectWallet({ walletName }) {
-  const { wallet, account } = await connectWalletInternal(walletName);
-  rememberConnectedAccount(wallet.name, account);
-  return {
-    account: account.address,
-    walletName: wallet.name,
-  };
+  try {
+    const { wallet, account } = await connectWalletInternal(walletName);
+    rememberConnectedAccount(wallet.name, account);
+    return {
+      account: account.address,
+      walletName: wallet.name,
+    };
+  } catch (error) {
+    debugMint("Wallet connect error", errorDebugDetails(error));
+    throw error;
+  }
 }
 
 async function mintWithWalletAccount({ wallet, account, salePoolStatus }) {
   const pool = firstAvailablePool(salePoolStatus);
+  if (!pool?.poolId) throw new Error(USER_FACING_MESSAGES.noActivePool);
   const mintPriceMist = BigInt(salePoolStatus?.mintPriceMist || FALLBACK_PRICE_MIST);
+  debugMint("Mint with wallet account requested", {
+    wallet: walletDebugDetails(wallet),
+    account: accountDebugDetails(account),
+    activePoolId: pool?.poolId || "",
+    activePoolLabel: pool?.label || "",
+    mintConfigId: salePoolStatus?.mintConfigId || FALLBACK_MINT_CONFIG_ID,
+    mintPriceMist: mintPriceMist.toString(),
+    transactionTarget: `${salePoolStatus?.latestPackageId || FALLBACK_PACKAGE_ID}::collection::purchase`,
+  });
   await assertMintBalance(account, mintPriceMist);
 
   const transaction = buildPurchaseTransaction({ account, pool, salePoolStatus });
@@ -278,13 +368,23 @@ async function mintWithConnectedWallet({ walletName, accountAddress, salePoolSta
     throw new Error(`${wallet.name} is not connected. Connect the wallet before minting.`);
   }
 
-  return mintWithWalletAccount({ wallet, account, salePoolStatus });
+  try {
+    return await mintWithWalletAccount({ wallet, account, salePoolStatus });
+  } catch (error) {
+    debugMint("Mint with connected wallet error", errorDebugDetails(error));
+    throw error;
+  }
 }
 
 async function connectAndMint({ walletName, salePoolStatus }) {
-  const { wallet, account } = await connectWalletInternal(walletName);
-  rememberConnectedAccount(wallet.name, account);
-  return mintWithWalletAccount({ wallet, account, salePoolStatus });
+  try {
+    const { wallet, account } = await connectWalletInternal(walletName);
+    rememberConnectedAccount(wallet.name, account);
+    return await mintWithWalletAccount({ wallet, account, salePoolStatus });
+  } catch (error) {
+    debugMint("Connect and mint error", errorDebugDetails(error));
+    throw error;
+  }
 }
 
 async function disconnectWallet({ walletName, accountAddress } = {}) {
@@ -357,6 +457,7 @@ window.NFTreeWalletMint = {
   connectWallet,
   connectAndMint,
   disconnectWallet,
+  messages: USER_FACING_MESSAGES,
   mintWithConnectedWallet,
   onConnectedWalletChange,
   onWalletsChanged,

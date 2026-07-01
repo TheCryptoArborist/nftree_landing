@@ -63,7 +63,7 @@
             Mint flow ready.
           </p>
         </div>
-        <a class="header-action" href="/mint" aria-label="Mint an NFTree from the sales pool now">
+        <a class="header-action" id="headerMintNowButton" href="/mint" data-mint-trigger aria-label="Mint an NFTree from the sales pool now">
           <span aria-hidden="true">
             <svg viewBox="0 0 20 20">
               <path d="M3 10h14" />
@@ -88,7 +88,7 @@
             Mint an NFTree from the sales pool right now, or preview listed NFTrees before buying on TradePort.
           </p>
           <div class="hero-actions" aria-label="Primary actions">
-            <a class="button button-primary" href="/mint">
+            <a class="button button-primary" id="heroMintNowButton" href="/mint" data-mint-trigger>
               <span aria-hidden="true">
                 <svg viewBox="0 0 20 20">
                   <path d="M4 5h12l-1 10H5L4 5Z" />
@@ -117,7 +117,7 @@
             </a>
           </div>
           <div class="hero-quick-links" aria-label="NFTree quick links">
-            <a href="/mint">Mint NFTree</a>
+            <a id="quickMintLink" href="/mint" data-mint-trigger>Mint NFTree</a>
             <a href="#nfts">Shop NFTrees</a>
             <a href="https://nftree.net/battle">Battle</a>
             <a href="https://treedrop.xyz" rel="noreferrer" target="_blank">Reward Dashboard</a>
@@ -206,7 +206,7 @@
               </div>
             </div>
             <div class="sale-pool-grid" id="salePoolGrid" aria-label="Configured NFTree sale pools"></div>
-            <a class="button button-primary mint-now-button" href="#walletPicker" data-wallet-open>Choose wallet and mint</a>
+            <a class="button button-primary mint-now-button" id="saleMintNowButton" href="#walletPicker" data-mint-trigger>Choose wallet and mint</a>
           </article>
         </div>
 

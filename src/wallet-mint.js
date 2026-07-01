@@ -17,6 +17,7 @@ const GAS_BUDGET_MIST = 120_000_000n;
 
 const client = new SuiJsonRpcClient({ network: "mainnet", url: SUI_RPC_URL });
 const walletsApi = getWallets();
+const connectedAccounts = new Map();
 
 function walletSupportsSui(wallet) {
   return (
@@ -59,6 +60,9 @@ function getMainnetAccount(accounts) {
 }
 
 function getConnectedAccount(wallet, accountAddress) {
+  const cached = connectedAccounts.get(`${normalizedName(wallet?.name)}:${accountAddress}`);
+  if (cached?.address) return cached;
+
   const accounts = Array.from(wallet?.accounts || []);
   const exact = accounts.find((account) => account.address === accountAddress && account.chains?.includes(MAINNET_CHAIN));
   return exact || accounts.find((account) => account.address === accountAddress) || getMainnetAccount(accounts);
@@ -219,6 +223,7 @@ async function connectWalletInternal(walletName) {
 
 async function connectWallet({ walletName }) {
   const { wallet, account } = await connectWalletInternal(walletName);
+  connectedAccounts.set(`${normalizedName(wallet.name)}:${account.address}`, account);
   return {
     account: account.address,
     walletName: wallet.name,
@@ -266,6 +271,7 @@ async function mintWithConnectedWallet({ walletName, accountAddress, salePoolSta
 
 async function connectAndMint({ walletName, salePoolStatus }) {
   const { wallet, account } = await connectWalletInternal(walletName);
+  connectedAccounts.set(`${normalizedName(wallet.name)}:${account.address}`, account);
   return mintWithWalletAccount({ wallet, account, salePoolStatus });
 }
 

@@ -957,6 +957,11 @@ h1 {
   transform: none;
 }
 
+[data-mint-trigger].is-disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
 .wallet-picker-status {
   margin: 10px 0 0;
   color: var(--muted);
@@ -992,6 +997,11 @@ h1 {
   color: #d3e7fb;
   font-size: 0.78rem;
   line-height: 1.4;
+}
+
+.mint-contract-status a {
+  color: var(--gold);
+  font-weight: 900;
 }
 
 .wallet-modal[hidden] {

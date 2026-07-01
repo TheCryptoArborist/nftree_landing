@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NFTree | Sui NFT Collection</title>
+    <meta
+      name="description"
+      content="NFTree is the Sui NFT collection for Garden Battles and future Thickquidity holder utilities. Shop active NFTrees from TradePort at nftree.net."
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#nfts">Skip to NFTree shop</a>
+    <header class="site-header" aria-label="NFTree header">
+      <a class="brand" href="/" aria-label="NFTree home">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="/assets/thickquidity-token-logo.jpg" alt="" />
+        </span>
+        <span>
+          <strong>NFTree</strong>
+          <small>Sui NFT collection</small>
+        </span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#nfts">Shop</a>
+        <a href="#utility">Games/Utility</a>
+        <a href="https://treedrop.xyz" rel="noreferrer" target="_blank">Rewards</a>
+        <a href="https://nftree.net/battle">Battle</a>
+        <a href="https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items" rel="noreferrer" target="_blank">TradePort</a>
+      </nav>
+      <div class="header-tools">
+        <div class="wallet-picker top-wallet-strip" id="walletPicker" aria-label="Choose a wallet before connecting">
+          <div class="wallet-picker-head">
+            <span>Wallet</span>
+            <strong id="selectedWalletLabel">No wallet selected</strong>
+          </div>
+          <div class="wallet-options" role="group" aria-label="Wallet options">
+            <button class="wallet-option" type="button" data-wallet="Slush Wallet" aria-pressed="false">
+              <span class="wallet-icon" aria-hidden="true">S</span>
+              <span>Slush</span>
+            </button>
+            <button class="wallet-option" type="button" data-wallet="Sui Wallet" aria-pressed="false">
+              <span class="wallet-icon" aria-hidden="true">SUI</span>
+              <span>Sui</span>
+            </button>
+            <button class="wallet-option" type="button" data-wallet="Surf Wallet" aria-pressed="false">
+              <span class="wallet-icon" aria-hidden="true">SF</span>
+              <span>Surf</span>
+            </button>
+            <button class="wallet-option" type="button" data-wallet="Phantom Wallet" aria-pressed="false">
+              <span class="wallet-icon" aria-hidden="true">P</span>
+              <span>Phantom</span>
+            </button>
+          </div>
+          <button class="button button-primary mint-now-button wallet-connect-button" id="walletConnectButton" type="button" disabled>
+            Connect
+          </button>
+          <p class="wallet-picker-status" id="walletPickerStatus" aria-live="polite">
+            Choose wallet, then mint from the active pool.
+          </p>
+          <p class="mint-contract-status" id="mintContractStatus" aria-live="polite">
+            Mint flow ready.
+          </p>
+        </div>
+        <a class="header-action" href="/mint" aria-label="Mint an NFTree from the sales pool now">
+          <span aria-hidden="true">
+            <svg viewBox="0 0 20 20">
+              <path d="M3 10h14" />
+              <path d="m11 4 6 6-6 6" />
+            </svg>
+          </span>
+          Mint Now
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <div class="hero-panel-logo">
+            <img src="/assets/thickquidity-token-logo.jpg" alt="Thickquidity token logo" />
+          </div>
+          <h1 id="hero-title">Welcome to NFTree.net</h1>
+          <p class="hero-pillars">MINT | GROW | BATTLE | PREDICT</p>
+          <p class="hero-text">
+            The Sui NFT collection for Garden Battles and future Thickquidity holder utilities.
+            Mint an NFTree from the sales pool right now, or preview listed NFTrees before buying on TradePort.
+          </p>
+          <div class="hero-actions" aria-label="Primary actions">
+            <a class="button button-primary" href="/mint">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 20 20">
+                  <path d="M4 5h12l-1 10H5L4 5Z" />
+                  <path d="M7 5a3 3 0 0 1 6 0" />
+                </svg>
+              </span>
+              Mint NFTree Now
+            </a>
+            <a class="button button-secondary" href="#nfts">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 20 20">
+                  <circle cx="9" cy="9" r="5" />
+                  <path d="m13 13 4 4" />
+                </svg>
+              </span>
+              Preview Listings
+            </a>
+            <a class="button button-secondary" href="https://nftree.net/battle">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 20 20">
+                  <path d="m5 15 10-10" />
+                  <path d="M6 5h9v9" />
+                </svg>
+              </span>
+              Play Garden Battles
+            </a>
+          </div>
+          <div class="hero-quick-links" aria-label="NFTree quick links">
+            <a href="/mint">Mint NFTree</a>
+            <a href="#nfts">Shop NFTrees</a>
+            <a href="https://nftree.net/battle">Battle</a>
+            <a href="https://treedrop.xyz" rel="noreferrer" target="_blank">Reward Dashboard</a>
+            <a href="#utility">Future utility</a>
+          </div>
+        </div>
+
+        <div class="hero-media-stack">
+          <div class="hero-video-frame" aria-label="NFTree animated brand preview">
+            <video
+              src="/assets/hero-walking-to-ring.mp4"
+              autoplay
+              muted
+              loop
+              playsinline
+              poster="https://black-persistent-capybara-279.mypinata.cloud/ipfs/bafybeibcs6wmqckyw2xmsl3u2m6si2uww5orz4l6ewbmio5scmllvux7le/333.jpg"
+            ></video>
+            <div class="hero-video-label">
+              <strong>Welcome to NFTree.net!!!</strong>
+            </div>
+          </div>
+          <div class="hero-path-banner" aria-label="Thickquidity ecosystem actions">
+            <div class="suidex-panel-head">
+              <img src="/assets/suidex-handshake.png" alt="SuiDex handshake logo" />
+              <div>
+                <span>BUY TREE on SUIDEX</span>
+                <p>Buy TREE first, then choose V2 farming or V3 liquidity.</p>
+              </div>
+            </div>
+            <div class="suidex-node" aria-label="SuiDex TREE actions">
+              <div class="suidex-actions">
+                <a href="https://dex.suidex.org/swap?from=SUI&to=Tree" target="_blank" rel="noreferrer">Buy TREE</a>
+                <a class="suidex-secondary" href="https://dex.suidex.org/pools/0x35a1be1f01f9edf7f5221d226f357d194d43c28f2a65cb38640935518d9a5bfc/add" target="_blank" rel="noreferrer">V2 Add LP</a>
+                <a class="suidex-secondary" href="https://dex.suidex.org/zap?pool=0x35a1be1f01f9edf7f5221d226f357d194d43c28f2a65cb38640935518d9a5bfc&amp;stake=true" target="_blank" rel="noreferrer">V2 Zap + Stake</a>
+                <a class="suidex-secondary" href="https://dex.suidex.org/pools/v3/0x39d5ba22e01e45bc4129ec28a0bef52e8fee8db5d07d337adf9540e3cb9074cf/add" target="_blank" rel="noreferrer">V3 Add LP</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="shop-section" id="nfts" aria-labelledby="shop-title">
+        <div class="section-heading">
+          <div>
+            <p class="microcopy">preview or mint</p>
+            <h2 id="shop-title">Mint now or preview before you buy</h2>
+          </div>
+          <div class="shop-actions">
+            <button class="icon-button" id="refreshListings" type="button" aria-label="Refresh listings">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M16 10a6 6 0 1 1-2-4.47" />
+                <path d="M16 3v5h-5" />
+              </svg>
+            </button>
+            <a class="button button-secondary" id="tradeportCollection" href="https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items" rel="noreferrer" target="_blank">
+              TradePort
+            </a>
+          </div>
+        </div>
+
+        <div class="acquisition-grid" id="mint" aria-label="NFTree buying options">
+          <article class="acquisition-card">
+            <span>Preview listed NFTrees</span>
+            <h3>Shop a visible NFTree on TradePort</h3>
+            <p>
+              Preview select NFTrees before buying: artwork, number, rarity, and listed price are shown below.
+              Use this path when you want to choose a specific NFTree.
+            </p>
+            <a class="button button-secondary" href="#listingGrid">Browse previews</a>
+          </article>
+          <article class="acquisition-card accent">
+            <span>Mint from sales pool now</span>
+            <h3>Mint your NFTree right now</h3>
+            <p>
+              Use the highlighted mint button to mint the next available NFTree from the active sale pools instead of
+              picking one already listed by another holder.
+            </p>
+            <div class="sale-pool-summary" aria-label="NFTree sale pool inventory">
+              <div>
+                <span>Sale pool inventory</span>
+                <strong id="mintPoolCount">Checking pools</strong>
+              </div>
+              <div>
+                <span>Active pool</span>
+                <strong id="activePoolLabel">Loading</strong>
+              </div>
+            </div>
+            <div class="sale-pool-grid" id="salePoolGrid" aria-label="Configured NFTree sale pools"></div>
+            <a class="button button-primary mint-now-button" href="#walletPicker">Choose wallet and mint</a>
+          </article>
+        </div>
+
+        <div class="stats-grid" aria-label="NFTree listing stats">
+          <div class="stat-card">
+            <span>Listed NFTrees</span>
+            <strong id="listedCount">Loading</strong>
+          </div>
+          <div class="stat-card">
+            <span>Floor price</span>
+            <strong id="floorPrice">Loading</strong>
+          </div>
+          <div class="stat-card">
+            <span>Source</span>
+            <strong>TradePort</strong>
+          </div>
+          <div class="stat-card">
+            <span>Sale pool NFTs</span>
+            <strong id="salePoolCount">Loading</strong>
+          </div>
+        </div>
+
+        <div class="shop-toolbar" aria-label="NFTree shop filters">
+          <label class="search-box" for="listingSearch">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="9" cy="9" r="5" />
+              <path d="m13 13 4 4" />
+            </svg>
+            <input id="listingSearch" type="search" placeholder="Search number or rarity" autocomplete="off" />
+          </label>
+          <div class="rarity-filters" role="group" aria-label="Filter by rarity">
+            <button class="filter-button is-active" data-rarity="all" type="button">All</button>
+            <button class="filter-button" data-rarity="Common" type="button">Common</button>
+            <button class="filter-button" data-rarity="Rare" type="button">Rare</button>
+            <button class="filter-button" data-rarity="Epic" type="button">Epic</button>
+            <button class="filter-button" data-rarity="Legendary" type="button">Legendary</button>
+            <button class="filter-button" data-rarity="Mythic" type="button">Mythic</button>
+          </div>
+        </div>
+
+        <div class="status-line" id="listingStatus" aria-live="polite">Loading current TradePort listings.</div>
+        <div class="listing-grid" id="listingGrid" aria-live="polite"></div>
+      </section>
+
+      <section class="access-section" id="utility" aria-labelledby="access-title">
+        <div class="access-heading">
+          <p class="microcopy">NFTREE ACCESS</p>
+          <h2 id="access-title">NFTrees also unlock Thickquidity games.</h2>
+          <p>
+            NFTree holders get access to rewards and holder-only utilities. Garden Battles is live now.
+            Arboretum and TREE Prediction Games are coming soon.
+          </p>
+        </div>
+        <div class="access-grid">
+          <article class="access-card">
+            <img src="/assets/garden-battles-preview.png" alt="Garden Battles preview" loading="lazy" />
+            <div class="access-card-body">
+              <span>Live now</span>
+              <h3>Garden Battles</h3>
+              <p>NFTree access is live for Garden Battles.</p>
+              <a class="button button-secondary" href="https://nftree.net/battle">Play Garden Battles</a>
+            </div>
+          </article>
+          <article class="access-card">
+            <img class="access-image-contain" src="/assets/arboretum-preview.png" alt="Arboretum preview" loading="lazy" />
+            <div class="access-card-body">
+              <span>Coming soon</span>
+              <h3>Arboretum</h3>
+              <p>Arboretum will be released in the near future as another NFTree-access game.</p>
+            </div>
+          </article>
+          <article class="access-card">
+            <img src="/assets/tree-prediction-games-preview.png" alt="TREE Prediction Games preview" loading="lazy" />
+            <div class="access-card-body">
+              <span>Coming soon</span>
+              <h3>TREE Prediction Games</h3>
+              <p>NFTree access will include prediction utilities for tropical weather, severe weather, box office games, and more.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="site-footer">
+      <span>NFTree</span>
+      <a href="https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items" rel="noreferrer" target="_blank">TradePort collection</a>
+    </footer>
+
+    <script src="/assets/nftree-wallet-mint.js"></script>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

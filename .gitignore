@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.netlify/
+.vite/
+*.log
+.env
+.env.local
+
+!public/
+!public/assets/
+!public/assets/nftree-wallet-mint.js

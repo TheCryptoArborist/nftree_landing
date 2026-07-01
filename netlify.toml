@@ -1,0 +1,35 @@
+[build]
+  publish = "public"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/mint"
+  to = "/#mint"
+  status = 302
+
+[[redirects]]
+  from = "/mint/"
+  to = "/#mint"
+  status = 302
+
+[[redirects]]
+  from = "/api/nftree-listings"
+  to = "/.netlify/functions/nftree-listings"
+  status = 200
+
+[[redirects]]
+  from = "/api/nftree-sale-pools"
+  to = "/.netlify/functions/nftree-sale-pools"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "public, max-age=45, stale-while-revalidate=120"

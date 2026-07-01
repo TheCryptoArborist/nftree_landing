@@ -1,4 +1,5 @@
 [build]
+  command = "npm run build"
   publish = "public"
 
 [functions]
@@ -6,13 +7,13 @@
 
 [[redirects]]
   from = "/mint"
-  to = "/#mint"
-  status = 302
+  to = "/index.html"
+  status = 200
 
 [[redirects]]
   from = "/mint/"
-  to = "/#mint"
-  status = 302
+  to = "/index.html"
+  status = 200
 
 [[redirects]]
   from = "/api/nftree-listings"
@@ -22,6 +23,16 @@
 [[redirects]]
   from = "/api/nftree-sale-pools"
   to = "/.netlify/functions/nftree-sale-pools"
+  status = 200
+
+[[redirects]]
+  from = "/battle"
+  to = "/battle/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/battle/*"
+  to = "/battle/index.html"
   status = 200
 
 [[redirects]]

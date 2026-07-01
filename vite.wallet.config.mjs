@@ -5,6 +5,7 @@ const rootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default {
   root: rootDir,
+  publicDir: false,
   build: {
     emptyOutDir: false,
     lib: {

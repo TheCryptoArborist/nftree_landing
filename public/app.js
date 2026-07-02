@@ -5,14 +5,18 @@ const COLLECTION_URL =
 const LATEST_PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5";
 const MINT_CONFIG_ID = "0xe83616020f61f73b30c40fd3f888ed397626afd071bd4666374c306d8e98b06b";
 const MINT_PRICE_MIST = "25000000000";
+const GAS_WARNING_BUFFER_MIST = "100000000";
 const DEBUG_MINT = new URLSearchParams(window.location.search).get("debugMint") === "1";
 const MINT_MESSAGES = Object.freeze({
   walletDisconnected: "Wallet disconnected.",
   connectBeforeMinting: "Connect a Sui wallet before minting.",
   mintPreview25Sui: "You are about to mint 1 NFTree for 25 SUI.",
+  checkingBalance: "Checking SUI balance.",
+  balanceUnavailable: "Could not confirm SUI balance. You may still try minting.",
+  gasWarning: "You have 25 SUI, but may need extra SUI for gas.",
   salePoolFailed: "Sale pool data failed to load.",
   noActivePool: "No active NFTree sale pool found.",
-  insufficientSui: "Insufficient SUI balance for 25 SUI mint plus gas.",
+  insufficientSui: "Insufficient SUI for NFTree mint. You need 25 SUI plus gas.",
   walletSigningCancelled: "Wallet signing was cancelled.",
   unsupportedSigning: "Wallet does not support Sui transaction signing.",
 });
@@ -92,6 +96,13 @@ const state = {
   selectedWallet: "",
   connectedWallet: "",
   connectedAddress: "",
+  balanceAccount: "",
+  balanceBranch: "idle",
+  balanceError: "",
+  balanceLabel: "",
+  balanceMist: "",
+  balanceRequestId: 0,
+  balanceStatus: "idle",
   isConnecting: false,
   isDisconnecting: false,
   isMinting: false,
@@ -114,6 +125,7 @@ const elements = {
   saleMintNowButton: document.querySelector("#saleMintNowButton"),
   tradeportCollection: document.querySelector("#tradeportCollection"),
   selectedWalletLabel: document.querySelector("#selectedWalletLabel"),
+  walletBalanceSummary: document.querySelector("#walletBalanceSummary"),
   walletConnectedSummary: document.querySelector("#walletConnectedSummary"),
   walletConnectButton: document.querySelector("#walletConnectButton"),
   walletDisconnectButton: document.querySelector("#walletDisconnectButton"),
@@ -187,6 +199,14 @@ function formatMistAsSui(value) {
   if (fraction === 0n) return `${whole.toLocaleString("en-US")} SUI`;
   const fractionText = fraction.toString().padStart(9, "0").replace(/0+$/, "");
   return `${whole.toLocaleString("en-US")}.${fractionText.slice(0, 4)} SUI`;
+}
+
+function mistBigInt(value) {
+  try {
+    return BigInt(String(value || "0"));
+  } catch {
+    return 0n;
+  }
 }
 
 function mintPreviewMessage(priceLabel) {
@@ -521,6 +541,187 @@ function activeSalePool() {
   );
 }
 
+function classifySuiBalance(balanceMist) {
+  const balance = mistBigInt(balanceMist);
+  const mintPrice = mistBigInt(state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST);
+  const gasBuffer = mistBigInt(GAS_WARNING_BUFFER_MIST);
+  const balanceSui = formatMistAsSui(balance);
+  let branch = "enough";
+  let message = `SUI balance: ${balanceSui}.`;
+  let blockedByInsufficientFunds = false;
+
+  if (balance < mintPrice) {
+    branch = "insufficient";
+    message = `SUI balance: ${balanceSui}. ${MINT_MESSAGES.insufficientSui}`;
+    blockedByInsufficientFunds = true;
+  } else if (balance < mintPrice + gasBuffer) {
+    branch = "gas-warning";
+    message = `SUI balance: ${balanceSui}. ${MINT_MESSAGES.gasWarning}`;
+  }
+
+  return {
+    balanceMist: balance.toString(),
+    balanceSui,
+    blockedByInsufficientFunds,
+    branch,
+    message,
+    mintPriceMist: mintPrice.toString(),
+  };
+}
+
+function balanceDebugState() {
+  return {
+    connectedWallet: state.connectedWallet,
+    accountAddress: state.balanceAccount || state.connectedAddress,
+    balanceStatus: state.balanceStatus,
+    balanceBranch: state.balanceBranch,
+    balanceMist: state.balanceMist,
+    balanceSui: state.balanceLabel,
+    mintPriceMist: state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST,
+    gasWarningBufferMist: GAS_WARNING_BUFFER_MIST,
+    blockedByInsufficientFunds: state.balanceStatus === "insufficient",
+  };
+}
+
+function currentBalanceState() {
+  return {
+    ...balanceDebugState(),
+    readyToAttemptMint:
+      !state.connectedAddress ||
+      state.balanceStatus === "enough" ||
+      state.balanceStatus === "gas-warning" ||
+      state.balanceStatus === "unknown",
+  };
+}
+
+function renderBalanceState() {
+  const element = elements.walletBalanceSummary;
+  if (!element) return;
+
+  element.classList.remove("is-ready", "is-warning", "is-error");
+
+  if (!state.connectedAddress || state.balanceStatus === "idle") {
+    element.textContent = "";
+    element.hidden = true;
+    return;
+  }
+
+  element.hidden = false;
+
+  if (state.balanceStatus === "loading") {
+    element.textContent = MINT_MESSAGES.checkingBalance;
+    element.classList.add("is-warning");
+    return;
+  }
+
+  if (state.balanceStatus === "unknown") {
+    element.textContent = MINT_MESSAGES.balanceUnavailable;
+    element.classList.add("is-warning");
+    return;
+  }
+
+  if (state.balanceStatus === "insufficient") {
+    element.textContent = `SUI balance: ${state.balanceLabel || "0 SUI"}. ${MINT_MESSAGES.insufficientSui}`;
+    element.classList.add("is-error");
+    return;
+  }
+
+  if (state.balanceStatus === "gas-warning") {
+    element.textContent = `SUI balance: ${state.balanceLabel}. ${MINT_MESSAGES.gasWarning}`;
+    element.classList.add("is-warning");
+    return;
+  }
+
+  element.textContent = `SUI balance: ${state.balanceLabel}.`;
+  element.classList.add("is-ready");
+}
+
+function clearBalanceState() {
+  state.balanceRequestId += 1;
+  state.balanceAccount = "";
+  state.balanceBranch = "idle";
+  state.balanceError = "";
+  state.balanceLabel = "";
+  state.balanceMist = "";
+  state.balanceStatus = "idle";
+  renderBalanceState();
+}
+
+async function refreshConnectedBalance() {
+  const accountAddress = state.connectedAddress;
+  const walletName = state.connectedWallet;
+  if (!accountAddress) {
+    clearBalanceState();
+    updateMintButtons();
+    return;
+  }
+
+  const requestId = state.balanceRequestId + 1;
+  state.balanceRequestId = requestId;
+  state.balanceAccount = accountAddress;
+  state.balanceBranch = "loading";
+  state.balanceError = "";
+  state.balanceLabel = "";
+  state.balanceMist = "";
+  state.balanceStatus = "loading";
+  renderBalanceState();
+  updateMintButtons();
+  debugMint("SUI balance check started", {
+    connectedWallet: walletName,
+    accountAddress,
+    mintPriceMist: state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST,
+  });
+
+  try {
+    const walletModule = getWalletModule();
+    if (typeof walletModule.getSuiBalance !== "function") {
+      throw new Error("NFTree wallet balance reader is not available.");
+    }
+
+    const balance = await walletModule.getSuiBalance({ accountAddress });
+    if (requestId !== state.balanceRequestId || accountAddress !== state.connectedAddress) return;
+
+    const classified = classifySuiBalance(balance.balanceMist);
+    state.balanceAccount = accountAddress;
+    state.balanceBranch = classified.branch;
+    state.balanceError = "";
+    state.balanceLabel = classified.balanceSui;
+    state.balanceMist = classified.balanceMist;
+    state.balanceStatus = classified.branch === "gas-warning" ? "gas-warning" : classified.branch;
+    debugMint("SUI balance check completed", {
+      connectedWallet: walletName,
+      accountAddress,
+      balanceMist: classified.balanceMist,
+      balanceSui: classified.balanceSui,
+      mintPriceMist: classified.mintPriceMist,
+      balanceBranch: classified.branch,
+      blockedByInsufficientFunds: classified.blockedByInsufficientFunds,
+    });
+  } catch (error) {
+    if (requestId !== state.balanceRequestId || accountAddress !== state.connectedAddress) return;
+
+    state.balanceAccount = accountAddress;
+    state.balanceBranch = "unknown";
+    state.balanceError = error?.message || String(error || "");
+    state.balanceLabel = "";
+    state.balanceMist = "";
+    state.balanceStatus = "unknown";
+    debugMint("SUI balance check failed", {
+      connectedWallet: walletName,
+      accountAddress,
+      mintPriceMist: state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST,
+      balanceBranch: "unknown",
+      blockedByInsufficientFunds: false,
+      error: errorDebugDetails(error),
+    });
+  } finally {
+    if (requestId === state.balanceRequestId && accountAddress === state.connectedAddress) {
+      renderBalanceState();
+      updateMintButtons();
+    }
+  }
+}
+
 function getActiveSigningState() {
   const displayConnected = Boolean(state.connectedWallet && state.connectedAddress);
   const fallback = {
@@ -595,18 +796,30 @@ function mintReadiness() {
 function updateMintButtons() {
   const readiness = mintReadiness();
   const signingState = getActiveSigningState();
+  const balanceState = currentBalanceState();
   const priceLabel = formatMistAsSui(state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST);
   elements.mintTriggers.forEach((trigger) => {
-    const disabled = !readiness.ready;
+    const balanceBlocksMint =
+      signingState.displayConnected &&
+      (balanceState.balanceStatus === "loading" || balanceState.blockedByInsufficientFunds);
+    const disabled = !readiness.ready || balanceBlocksMint;
     trigger.classList.toggle("is-disabled", disabled);
     trigger.setAttribute("aria-disabled", disabled ? "true" : "false");
     trigger.dataset.mintState = readiness.state;
+    trigger.dataset.balanceState = balanceState.balanceStatus || "idle";
+    trigger.dataset.balanceBlocksMint = balanceBlocksMint ? "true" : "false";
     trigger.dataset.walletConnected = signingState.displayConnected ? "true" : "false";
     trigger.dataset.signingReady = signingState.signingReady ? "true" : "false";
-    trigger.title = disabled ? readiness.message : "";
+    trigger.title = balanceBlocksMint
+      ? (balanceState.balanceStatus === "loading" ? MINT_MESSAGES.checkingBalance : MINT_MESSAGES.insufficientSui)
+      : (disabled ? readiness.message : "");
 
     if (state.isMinting) {
       trigger.textContent = "Minting...";
+    } else if (signingState.displayConnected && balanceState.balanceStatus === "loading") {
+      trigger.textContent = "Checking SUI balance";
+    } else if (signingState.displayConnected && balanceState.blockedByInsufficientFunds) {
+      trigger.textContent = "Insufficient SUI for mint";
     } else if (!readiness.ready && readiness.state === "loading") {
       trigger.textContent = "Checking sale pools";
     } else if (!readiness.ready) {
@@ -632,6 +845,7 @@ function renderWalletState() {
     elements.walletConnectedSummary.hidden = false;
     elements.walletDisconnectButton.hidden = false;
     elements.walletDisconnectButton.disabled = state.isDisconnecting || state.isMinting;
+    renderBalanceState();
     return;
   }
 
@@ -639,6 +853,7 @@ function renderWalletState() {
   elements.walletConnectedSummary.hidden = true;
   elements.walletDisconnectButton.hidden = true;
   elements.walletDisconnectButton.disabled = true;
+  renderBalanceState();
 
   if (!state.wallets.length) {
     elements.selectedWalletLabel.textContent = "No wallet detected";
@@ -786,6 +1001,7 @@ function clearConnectedWalletState() {
   state.connectedWallet = "";
   state.connectedAddress = "";
   state.selectedWallet = "";
+  clearBalanceState();
 }
 
 function subscribeToConnectedWallet() {
@@ -819,6 +1035,7 @@ function subscribeToConnectedWallet() {
       state.connectedAddress = event.account || state.connectedAddress;
       state.selectedWallet = state.connectedWallet;
       renderWalletState();
+      refreshConnectedBalance();
       updateWalletButton();
       updateMintButtons();
       renderCompactWalletOptions();
@@ -855,6 +1072,7 @@ async function connectWallet(walletName) {
     state.selectedWallet = result.walletName;
     subscribeToConnectedWallet();
     renderWalletState();
+    refreshConnectedBalance();
     setWalletStatus(`Connected to ${result.walletName}: ${shortenAddress(result.account)}. Press Mint NFTree to submit a transaction.`, "ready");
     setModalStatus(`Connected to ${shortenAddress(result.account)}. Close this picker and press Mint NFTree when ready.`, "ready");
     elements.mintContractStatus.textContent = `Connected: ${shortenAddress(result.account)}. Minting is ready but no transaction has been submitted.`;
@@ -926,6 +1144,7 @@ async function mintConnectedWallet() {
     selectedWalletName: signingState.signingWalletName,
     signingReady: signingState.signingReady,
     signingStateSource: signingState.signingStateSource,
+    balance: balanceDebugState(),
   });
   const readiness = mintReadiness();
   if (!readiness.ready) {
@@ -950,17 +1169,43 @@ async function mintConnectedWallet() {
     return;
   }
 
+  const balanceState = currentBalanceState();
+  if (balanceState.balanceStatus === "loading") {
+    debugMint("Mint branch: blocked -> balance loading", {
+      ...balanceState,
+      activePoolId: pool?.poolId || "",
+    });
+    setWalletStatus(MINT_MESSAGES.checkingBalance, "connecting");
+    elements.mintContractStatus.textContent = MINT_MESSAGES.checkingBalance;
+    updateMintButtons();
+    return;
+  }
+
+  if (balanceState.blockedByInsufficientFunds) {
+    debugMint("Mint branch: blocked -> insufficient balance", {
+      ...balanceState,
+      activePoolId: pool?.poolId || "",
+    });
+    setWalletStatus(MINT_MESSAGES.insufficientSui, "error");
+    elements.mintContractStatus.textContent =
+      `SUI balance: ${balanceState.balanceSui || "0 SUI"}. ${MINT_MESSAGES.insufficientSui}`;
+    updateMintButtons();
+    return;
+  }
+
   if (!signingState.signingReady) {
     debugMint("Mint branch: connected -> preview with signing-state warning", {
       connectedWallet: state.connectedWallet,
       connectedAddress: state.connectedAddress,
       moduleState: signingState.moduleState,
+      balance: balanceState,
     });
   } else {
     debugMint("Mint branch: connected -> preview", {
       connectedWallet: state.connectedWallet,
       connectedAddress: state.connectedAddress,
       moduleState: signingState.moduleState,
+      balance: balanceState,
     });
   }
 
@@ -983,6 +1228,7 @@ async function mintConnectedWallet() {
     mintConfigId: state.salePoolStatus.mintConfigId || MINT_CONFIG_ID,
     mintPriceMist: state.salePoolStatus.mintPriceMist || MINT_PRICE_MIST,
     transactionTarget: `${state.salePoolStatus.latestPackageId || LATEST_PACKAGE_ID}::collection::purchase`,
+    balance: balanceState,
   });
   await nextFrame();
   await wait(450);
@@ -1005,6 +1251,7 @@ async function mintConnectedWallet() {
       `Mint succeeded. Transaction digest: ${escapeHtml(digest)}. ` +
       `<a href="${escapeHtml(explorerUrl)}" target="_blank" rel="noreferrer">View on Sui Explorer</a>`;
     await loadSalePools();
+    refreshConnectedBalance();
     setWalletStatus(`Mint succeeded through ${result.walletName}.`, "ready");
     elements.mintContractStatus.innerHTML = successMessage;
     debugMint("Mint transaction succeeded", {
@@ -1040,6 +1287,7 @@ elements.mintTriggers.forEach((trigger) => {
     const signingState = getActiveSigningState();
     const readiness = mintReadiness();
     const pool = activeSalePool();
+    const balanceState = currentBalanceState();
     debugMint("Mint button clicked", {
       activePoolId: pool?.poolId || "",
       id: trigger.id || "",
@@ -1054,8 +1302,13 @@ elements.mintTriggers.forEach((trigger) => {
       uiDisplayConnected: signingState.displayConnected,
       connectedWallet: state.connectedWallet,
       connectedAddress: state.connectedAddress,
+      balance: balanceState,
       expectedBranch: !readiness.ready
         ? `blocked -> ${readiness.message}`
+        : signingState.displayConnected && balanceState.balanceStatus === "loading"
+          ? "blocked -> balance loading"
+          : signingState.displayConnected && balanceState.blockedByInsufficientFunds
+            ? "blocked -> insufficient balance"
         : signingState.displayConnected
           ? "connected -> preview"
           : "disconnected -> open picker",

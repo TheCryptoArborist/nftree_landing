@@ -23,7 +23,7 @@ const USER_FACING_MESSAGES = Object.freeze({
   mintPreview25Sui: "You are about to mint 1 NFTree for 25 SUI.",
   salePoolFailed: "Sale pool data failed to load.",
   noActivePool: "No active NFTree sale pool found.",
-  insufficientSui: "Insufficient SUI balance for 25 SUI mint plus gas.",
+  insufficientSui: "Insufficient SUI for NFTree mint. You need 25 SUI plus gas.",
   walletSigningCancelled: "Wallet signing was cancelled.",
   unsupportedSigning: "Wallet does not support Sui transaction signing.",
 });
@@ -178,6 +178,29 @@ async function fetchSuiCoins(owner) {
   } while (cursor && coins.length < 200);
 
   return coins;
+}
+
+async function getSuiBalance({ accountAddress } = {}) {
+  const owner = String(accountAddress || activeConnection.accountAddress || "");
+  if (!owner) {
+    throw new Error("Connect a Sui wallet before checking balance.");
+  }
+
+  const balance = await client.getBalance({ owner, coinType: SUI_COIN_TYPE });
+  const balanceMist = String(balance?.totalBalance || "0");
+  debugMint("Fetched SUI balance", {
+    accountAddress: owner,
+    balanceMist,
+    balanceSui: formatMistAsSui(balanceMist),
+    coinType: SUI_COIN_TYPE,
+  });
+
+  return {
+    accountAddress: owner,
+    balanceMist,
+    balanceSui: formatMistAsSui(balanceMist),
+    coinType: SUI_COIN_TYPE,
+  };
 }
 
 async function assertMintBalance(account, mintPriceMist) {
@@ -479,6 +502,7 @@ window.NFTreeWalletMint = {
   connectWallet,
   connectAndMint,
   disconnectWallet,
+  getSuiBalance,
   getConnectedWalletState,
   messages: USER_FACING_MESSAGES,
   mintWithConnectedWallet,

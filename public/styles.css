@@ -1000,6 +1000,33 @@ h1 {
   font-size: 0.66rem;
 }
 
+.wallet-balance-summary {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  color: #d3e7fb;
+  background: rgba(1, 10, 18, 0.82);
+  border: 1px solid rgba(114, 213, 226, 0.22);
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.wallet-balance-summary.is-ready {
+  color: var(--cyan);
+  border-color: rgba(0, 241, 210, 0.34);
+}
+
+.wallet-balance-summary.is-warning {
+  color: var(--gold);
+  border-color: rgba(255, 216, 75, 0.42);
+}
+
+.wallet-balance-summary.is-error {
+  color: #ffb0a8;
+  border-color: rgba(255, 176, 168, 0.34);
+}
+
 .wallet-disconnect-button {
   width: 100%;
   min-height: 42px;

@@ -945,11 +945,29 @@ h1 {
   line-height: 1;
 }
 
+.wallet-icon-image {
+  overflow: hidden;
+  padding: 2px;
+  background: rgba(244, 251, 255, 0.08);
+}
+
+.wallet-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
 .top-wallet-strip .wallet-icon {
   flex-basis: 18px;
   width: 18px;
   height: 18px;
   font-size: 0.44rem;
+}
+
+.top-wallet-strip .wallet-icon-image {
+  padding: 1px;
 }
 
 .wallet-option.is-selected .wallet-icon {

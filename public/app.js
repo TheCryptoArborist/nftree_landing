@@ -485,6 +485,38 @@ function walletInitial(walletName) {
   return compact.slice(0, 2).toUpperCase() || "W";
 }
 
+function walletIconMarkup(wallet) {
+  const walletName = String(wallet?.name || "Sui wallet");
+  const walletIcon = typeof wallet?.icon === "string" ? wallet.icon.trim() : "";
+  const initial = walletInitial(walletName);
+
+  if (!walletIcon) {
+    return `<span class="wallet-icon wallet-icon-fallback" aria-hidden="true">${escapeHtml(initial)}</span>`;
+  }
+
+  return `
+    <span class="wallet-icon wallet-icon-image" aria-hidden="true" data-wallet-initial="${escapeHtml(initial)}">
+      <img src="${escapeHtml(walletIcon)}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+    </span>
+  `;
+}
+
+function activateWalletIconFallbacks(container) {
+  container?.querySelectorAll(".wallet-icon-image img").forEach((image) => {
+    image.addEventListener(
+      "error",
+      () => {
+        const icon = image.closest(".wallet-icon-image");
+        if (!icon) return;
+        icon.classList.remove("wallet-icon-image");
+        icon.classList.add("wallet-icon-fallback");
+        icon.textContent = icon.dataset.walletInitial || "W";
+      },
+      { once: true },
+    );
+  });
+}
+
 function walletErrorMessage(error, fallback) {
   const message = error instanceof Error ? error.message : String(error || "");
   if (/reject|denied|cancel|closed/i.test(message)) {
@@ -920,7 +952,7 @@ function renderCompactWalletOptions() {
   if (!state.wallets.length) {
     elements.walletOptions.innerHTML = `
       <button class="wallet-option wallet-option-empty" type="button" aria-pressed="false">
-        <span class="wallet-icon" aria-hidden="true">?</span>
+        <span class="wallet-icon wallet-icon-fallback" aria-hidden="true">?</span>
         <span>No wallet</span>
       </button>
     `;
@@ -934,12 +966,13 @@ function renderCompactWalletOptions() {
       const walletName = String(wallet.name || "Sui wallet");
       return `
         <button class="wallet-option ${selected ? "is-selected" : ""}" type="button" data-wallet="${escapeHtml(walletName)}" aria-pressed="${selected ? "true" : "false"}">
-          <span class="wallet-icon" aria-hidden="true">${escapeHtml(walletInitial(walletName))}</span>
+          ${walletIconMarkup(wallet)}
           <span>${escapeHtml(walletName.replace(/\s+wallet\b/i, ""))}</span>
         </button>
       `;
     })
     .join("");
+  activateWalletIconFallbacks(elements.walletOptions);
 }
 
 function renderWalletModalOptions() {
@@ -961,12 +994,13 @@ function renderWalletModalOptions() {
       const walletName = String(wallet.name || "Sui wallet");
       return `
       <button class="wallet-modal-option ${walletName === state.selectedWallet ? "is-selected" : ""}" type="button" data-wallet="${escapeHtml(walletName)}">
-        <span class="wallet-icon" aria-hidden="true">${escapeHtml(walletInitial(walletName))}</span>
+        ${walletIconMarkup(wallet)}
         <span>${escapeHtml(walletName)}</span>
       </button>
     `;
     })
     .join("");
+  activateWalletIconFallbacks(elements.walletModalOptions);
 }
 
 function openWalletPicker(walletName = "") {

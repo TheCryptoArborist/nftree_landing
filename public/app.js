@@ -485,6 +485,31 @@ function walletInitial(walletName) {
   return compact.slice(0, 2).toUpperCase() || "W";
 }
 
+function normalizedWalletName(walletName) {
+  return String(walletName || "")
+    .toLowerCase()
+    .replace(/\s+wallet\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function preferredWalletRank(walletName) {
+  const normalized = normalizedWalletName(walletName);
+  if (normalized.includes("slush")) return 0;
+  if (normalized.includes("phantom")) return 1;
+  if (normalized.includes("nightly")) return 2;
+  return 10;
+}
+
+function orderedWallets(wallets) {
+  return Array.from(wallets || []).sort((left, right) => {
+    const leftName = String(left?.name || "");
+    const rightName = String(right?.name || "");
+    const rankDifference = preferredWalletRank(leftName) - preferredWalletRank(rightName);
+    if (rankDifference) return rankDifference;
+    return leftName.localeCompare(rightName);
+  });
+}
+
 function walletIconMarkup(wallet) {
   const walletName = String(wallet?.name || "Sui wallet");
   const walletIcon = typeof wallet?.icon === "string" ? wallet.icon.trim() : "";
@@ -918,7 +943,7 @@ function updateWalletButton() {
 }
 
 function setWallets(wallets) {
-  state.wallets = Array.isArray(wallets) ? wallets : [];
+  state.wallets = Array.isArray(wallets) ? orderedWallets(wallets) : [];
   renderCompactWalletOptions();
   renderWalletModalOptions();
 

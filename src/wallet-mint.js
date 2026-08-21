@@ -1,4 +1,4 @@
-import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Transaction } from "@mysten/sui/transactions";
 import {
   StandardConnect,
@@ -28,7 +28,7 @@ const USER_FACING_MESSAGES = Object.freeze({
   unsupportedSigning: "Wallet does not support Sui transaction signing.",
 });
 
-const client = new SuiJsonRpcClient({ network: "mainnet", url: SUI_RPC_URL });
+const client = new SuiGrpcClient({ network: "mainnet", baseUrl: SUI_RPC_URL });
 const walletsApi = getWallets();
 const connectedAccounts = new Map();
 let activeConnection = { accountAddress: "", walletName: "" };
@@ -162,19 +162,37 @@ function formatMistAsSui(value) {
   return `${whole.toLocaleString("en-US")}.${fraction.toString().padStart(9, "0").replace(/0+$/, "")} SUI`;
 }
 
+function balanceMistFromResponse(balance) {
+  if (typeof balance?.totalBalance === "string") return balance.totalBalance;
+  if (typeof balance?.balance === "string") return balance.balance;
+  if (typeof balance?.balance?.balance === "string") return balance.balance.balance;
+  if (typeof balance?.balance?.coinBalance === "string") return balance.balance.coinBalance;
+  return "0";
+}
+
+function coinItemsFromPage(page) {
+  if (Array.isArray(page?.data)) return page.data;
+  if (Array.isArray(page?.objects)) return page.objects;
+  return [];
+}
+
+function nextCoinCursorFromPage(page) {
+  return page?.nextCursor || page?.cursor || null;
+}
+
 async function fetchSuiCoins(owner) {
   const coins = [];
   let cursor = null;
 
   do {
-    const page = await client.getCoins({
+    const page = await client.listCoins({
       owner,
       coinType: SUI_COIN_TYPE,
       cursor,
       limit: 50,
     });
-    coins.push(...(page?.data || []));
-    cursor = page?.hasNextPage ? page.nextCursor : null;
+    coins.push(...coinItemsFromPage(page));
+    cursor = page?.hasNextPage ? nextCoinCursorFromPage(page) : null;
   } while (cursor && coins.length < 200);
 
   return coins;
@@ -187,7 +205,7 @@ async function getSuiBalance({ accountAddress } = {}) {
   }
 
   const balance = await client.getBalance({ owner, coinType: SUI_COIN_TYPE });
-  const balanceMist = String(balance?.totalBalance || "0");
+  const balanceMist = balanceMistFromResponse(balance);
   debugMint("Fetched SUI balance", {
     accountAddress: owner,
     balanceMist,
@@ -209,7 +227,7 @@ async function assertMintBalance(account, mintPriceMist) {
       client.getBalance({ owner: account.address, coinType: SUI_COIN_TYPE }),
       fetchSuiCoins(account.address),
     ]);
-    const totalBalance = BigInt(balance?.totalBalance || 0);
+    const totalBalance = BigInt(balanceMistFromResponse(balance));
     const requiredBalance = mintPriceMist + GAS_BUDGET_MIST;
     const largestCoinBalance = coins.reduce((largest, coin) => {
       const coinBalance = BigInt(coin?.balance || 0);

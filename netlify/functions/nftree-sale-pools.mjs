@@ -1,4 +1,7 @@
-﻿const SUI_RPC_URL = process.env.SUI_RPC_URL || "https://fullnode.mainnet.sui.io:443";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
+
+const SUI_FULLNODE_URL =
+  process.env.SUI_GRPC_URL || process.env.SUI_RPC_URL || "https://fullnode.mainnet.sui.io:443";
 
 const COLLECTION_PACKAGE_ID = "0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705";
 const LATEST_PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5";
@@ -63,33 +66,27 @@ function rarityBreakdown(nfts) {
   return counts;
 }
 
-async function rpc(method, params, signal) {
-  const response = await fetch(SUI_RPC_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: Date.now(),
-      method,
-      params,
-    }),
+const suiClient = new SuiGrpcClient({ network: "mainnet", baseUrl: SUI_FULLNODE_URL });
+
+async function fetchObjectJson(objectId, signal) {
+  const { object } = await suiClient.getObject({
+    objectId,
+    include: { json: true, owner: true, type: true },
     signal,
   });
 
-  const payload = await response.json();
-  if (!response.ok || payload.error) {
-    throw new Error(payload.error?.message || `Sui RPC returned ${response.status}.`);
+  if (!object?.json) {
+    throw new Error(`Sui object ${objectId} did not return decoded JSON fields.`);
   }
-  return payload.result;
+
+  return {
+    fields: object.json,
+    object,
+  };
 }
 
 async function fetchSalePool(pool, signal) {
-  const result = await rpc(
-    "sui_getObject",
-    [pool.poolId, { showContent: true, showType: true, showOwner: true }],
-    signal,
-  );
-  const fields = result?.data?.content?.fields || {};
+  const { fields, object } = await fetchObjectJson(pool.poolId, signal);
   const nfts = nftArrayFromFields(fields);
   const numbers = nfts.map(nftNumber).filter((value) => value !== undefined).sort((left, right) => left - right);
 
@@ -99,18 +96,13 @@ async function fetchSalePool(pool, signal) {
     firstNumber: numbers[0] || null,
     lastNumber: numbers[numbers.length - 1] || null,
     rarityBreakdown: rarityBreakdown(nfts),
-    objectType: result?.data?.type || "",
-    version: result?.data?.version || "",
+    objectType: object?.type || "",
+    version: object?.version || "",
   };
 }
 
 async function fetchMintConfig(signal) {
-  const result = await rpc(
-    "sui_getObject",
-    [MINT_CONFIG_ID, { showContent: true, showType: true, showOwner: true }],
-    signal,
-  );
-  const fields = result?.data?.content?.fields || {};
+  const { fields } = await fetchObjectJson(MINT_CONFIG_ID, signal);
 
   return {
     admin: String(fields.admin || ""),
@@ -152,7 +144,7 @@ export default async (request) => {
       activePoolLabel: activePool?.label || "",
       pools,
       fetchedAt: new Date().toISOString(),
-      source: "sui-rpc",
+      source: "sui-grpc",
     });
   } catch (error) {
     return jsonResponse(
@@ -164,7 +156,7 @@ export default async (request) => {
         treasury: FALLBACK_TREASURY,
         error: error instanceof Error ? error.message : "NFTree sale-pool lookup failed.",
         pools: SALE_POOLS,
-        source: "sui-rpc",
+        source: "sui-grpc",
       },
       502,
     );

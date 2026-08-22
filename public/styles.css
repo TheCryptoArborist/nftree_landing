@@ -279,7 +279,6 @@ main {
 #nfts,
 #mint,
 #tree-fund,
-#utility,
 #listingGrid {
   scroll-margin-top: 96px;
 }
@@ -436,8 +435,7 @@ h1 {
 }
 
 .shop-section,
-.impact-section,
-.access-section {
+.impact-section {
   margin-top: 22px;
   padding: 26px;
   background: var(--panel);
@@ -1393,101 +1391,6 @@ h1 {
   text-align: center;
 }
 
-.access-section {
-  border-color: rgba(123, 74, 237, 0.5);
-  background:
-    radial-gradient(circle at 72% 18%, rgba(99, 55, 184, 0.18), transparent 25%),
-    linear-gradient(100deg, rgba(3, 28, 24, 0.82), rgba(8, 10, 28, 0.92)),
-    var(--panel);
-}
-
-.access-heading {
-  max-width: 900px;
-  margin-bottom: 20px;
-}
-
-.access-heading h2 {
-  max-width: 780px;
-  margin: 0;
-  color: var(--text);
-  font-size: 3.2rem;
-  font-weight: 950;
-  line-height: 1.02;
-}
-
-.access-heading p:not(.microcopy) {
-  max-width: 880px;
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-size: 1rem;
-  font-weight: 750;
-  line-height: 1.5;
-}
-
-.access-heading-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.access-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.access-card {
-  min-width: 0;
-  overflow: hidden;
-  background: rgba(8, 11, 31, 0.86);
-  border: 1px solid rgba(129, 74, 237, 0.6);
-  border-radius: 8px;
-}
-
-.access-card img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  background: #050a15;
-}
-
-.access-card img.access-image-contain {
-  object-fit: contain;
-}
-
-.access-card-body {
-  padding: 18px;
-}
-
-.access-card-body span {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--cyan);
-  font-size: 0.78rem;
-  font-weight: 950;
-  text-transform: uppercase;
-}
-
-.access-card-body h3 {
-  margin: 0;
-  color: var(--text);
-  font-size: 1.7rem;
-  font-weight: 950;
-  line-height: 1.08;
-}
-
-.access-card-body p {
-  margin: 8px 0 0;
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-.access-card-body .button {
-  margin-top: 14px;
-}
-
 .site-footer {
   display: flex;
   flex-direction: column;
@@ -1500,39 +1403,17 @@ h1 {
 
 .footer-arcade-promo {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
-  align-items: center;
+  align-items: start;
   width: 100%;
-  padding: 16px;
+  padding: 22px;
   background:
     radial-gradient(circle at 12% 20%, rgba(126, 243, 160, 0.16), transparent 30%),
     linear-gradient(100deg, rgba(3, 28, 24, 0.9), rgba(8, 10, 28, 0.88));
   border: 1px solid rgba(126, 243, 160, 0.3);
   border-radius: 8px;
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
-}
-
-.footer-arcade-media {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.footer-arcade-emblem {
-  width: 68px;
-  height: 68px;
-  object-fit: contain;
-}
-
-.footer-arcade-game-logo {
-  width: 118px;
-  height: 62px;
-  object-fit: contain;
-  padding: 6px;
-  background: rgba(1, 10, 18, 0.7);
-  border: 1px solid rgba(244, 251, 255, 0.12);
-  border-radius: 8px;
 }
 
 .footer-arcade-copy {
@@ -1551,7 +1432,7 @@ h1 {
   display: block;
   margin-top: 5px;
   color: var(--text);
-  font-size: 1.2rem;
+  font-size: 1.7rem;
   font-weight: 950;
   line-height: 1.1;
 }
@@ -1564,7 +1445,56 @@ h1 {
 }
 
 .footer-arcade-button {
+  justify-self: end;
   white-space: nowrap;
+}
+
+.site-footer .footer-arcade-button {
+  color: #071017;
+}
+
+.footer-arcade-games {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.footer-arcade-game {
+  min-width: 0;
+  padding: 12px;
+  background: rgba(1, 10, 18, 0.74);
+  border: 1px solid rgba(126, 243, 160, 0.22);
+  border-radius: 8px;
+}
+
+.footer-arcade-game img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  padding: 8px;
+  background: #02070b;
+  border: 1px solid rgba(244, 251, 255, 0.1);
+  border-radius: 8px;
+}
+
+.footer-arcade-game span {
+  display: block;
+  margin-top: 10px;
+  color: var(--cyan);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.footer-arcade-game strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 950;
+  line-height: 1.15;
 }
 
 .footer-bottom {
@@ -1582,13 +1512,13 @@ h1 {
   justify-content: flex-end;
 }
 
-.site-footer a {
+.site-footer a:not(.button) {
   color: var(--gold);
   font-weight: 850;
 }
 
-.site-footer a:hover,
-.site-footer a:focus-visible {
+.site-footer a:not(.button):hover,
+.site-footer a:not(.button):focus-visible {
   color: var(--cyan);
   outline: none;
 }
@@ -1671,11 +1601,10 @@ h1 {
   }
 
   .footer-arcade-promo {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 1fr;
   }
 
   .footer-arcade-button {
-    grid-column: 1 / -1;
     justify-self: start;
   }
 
@@ -1749,8 +1678,7 @@ h1 {
 
   .hero,
   .shop-section,
-  .impact-section,
-  .access-section {
+  .impact-section {
     padding: 18px;
   }
 
@@ -1805,8 +1733,8 @@ h1 {
     font-size: 1.45rem;
   }
 
-  .access-heading h2 {
-    font-size: 2.25rem;
+  .footer-arcade-copy strong {
+    font-size: 1.35rem;
   }
 
   .stats-grid,
@@ -1814,7 +1742,7 @@ h1 {
   .acquisition-grid,
   .sale-pool-summary,
   .sale-pool-grid,
-  .access-grid,
+  .footer-arcade-games,
   .listing-grid {
     grid-template-columns: 1fr;
   }
@@ -1851,10 +1779,6 @@ h1 {
 
   .footer-arcade-promo {
     grid-template-columns: 1fr;
-  }
-
-  .footer-arcade-media {
-    justify-content: space-between;
   }
 
   .footer-arcade-button {

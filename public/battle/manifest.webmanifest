@@ -1,0 +1,18 @@
+{
+  "name": "Garden Battles",
+  "short_name": "Garden Battles",
+  "description": "Strategic NFTree battles powered by TREE on Sui.",
+  "start_url": "/battle/",
+  "scope": "/battle/",
+  "display": "standalone",
+  "background_color": "#001b16",
+  "theme_color": "#001b16",
+  "icons": [
+    {
+      "src": "/battle/assets/garden-battles-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

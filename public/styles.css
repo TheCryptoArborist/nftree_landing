@@ -278,6 +278,7 @@ main {
 
 #nfts,
 #mint,
+#tree-fund,
 #utility,
 #listingGrid {
   scroll-margin-top: 96px;
@@ -435,6 +436,7 @@ h1 {
 }
 
 .shop-section,
+.impact-section,
 .access-section {
   margin-top: 22px;
   padding: 26px;
@@ -1304,6 +1306,93 @@ h1 {
   font-size: 1.1rem;
 }
 
+.impact-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+  gap: 24px;
+  align-items: center;
+  border-color: rgba(126, 243, 160, 0.38);
+  background:
+    radial-gradient(circle at 88% 18%, rgba(126, 243, 160, 0.14), transparent 26%),
+    linear-gradient(112deg, rgba(3, 28, 24, 0.86), rgba(5, 12, 22, 0.9)),
+    var(--panel);
+}
+
+.impact-copy h2 {
+  max-width: 760px;
+  margin: 0;
+  color: var(--text);
+  font-size: 2.35rem;
+  font-weight: 950;
+  line-height: 1.05;
+}
+
+.impact-copy p:not(.microcopy) {
+  max-width: 760px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.55;
+}
+
+.impact-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.impact-metric {
+  min-width: 0;
+  padding: 14px;
+  background: rgba(1, 10, 18, 0.82);
+  border: 1px solid rgba(126, 243, 160, 0.24);
+  border-radius: 8px;
+}
+
+.impact-metric span {
+  display: block;
+  color: var(--cyan);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.impact-metric strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--gold);
+  font-size: 1.35rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.donation-receipt {
+  min-width: 0;
+  margin: 0;
+}
+
+.donation-receipt img {
+  display: block;
+  width: 100%;
+  max-height: 430px;
+  object-fit: cover;
+  object-position: top center;
+  background: #f4fbff;
+  border: 1px solid rgba(244, 251, 255, 0.22);
+  border-radius: 8px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+}
+
+.donation-receipt figcaption {
+  margin-top: 9px;
+  color: #c4d5e8;
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-align: center;
+}
+
 .access-section {
   border-color: rgba(123, 74, 237, 0.5);
   background:
@@ -1486,6 +1575,10 @@ h1 {
     min-height: auto;
   }
 
+  .impact-section {
+    grid-template-columns: 1fr;
+  }
+
   .hero-media-stack {
     max-width: 620px;
     width: 100%;
@@ -1556,6 +1649,7 @@ h1 {
 
   .hero,
   .shop-section,
+  .impact-section,
   .access-section {
     padding: 18px;
   }
@@ -1616,6 +1710,7 @@ h1 {
   }
 
   .stats-grid,
+  .impact-metrics,
   .acquisition-grid,
   .sale-pool-summary,
   .sale-pool-grid,

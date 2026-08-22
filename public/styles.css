@@ -1490,16 +1490,35 @@ h1 {
 
 .site-footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   width: min(var(--max), calc(100% - 32px));
-  margin: 0 auto 30px;
+  margin: 18px auto 30px;
   color: #a8bed4;
   font-size: 0.85rem;
 }
 
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: flex-end;
+}
+
 .site-footer a {
   color: var(--gold);
+  font-weight: 850;
+}
+
+.site-footer a:hover,
+.site-footer a:focus-visible {
+  color: var(--cyan);
+  outline: none;
+}
+
+.footer-arcade-link {
+  color: var(--text);
 }
 
 .back-to-top-button {

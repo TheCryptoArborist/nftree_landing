@@ -1407,6 +1407,7 @@ h1 {
   gap: 18px;
   align-items: start;
   width: 100%;
+  margin-top: 22px;
   padding: 22px;
   background:
     radial-gradient(circle at 12% 20%, rgba(126, 243, 160, 0.16), transparent 30%),
@@ -1449,7 +1450,7 @@ h1 {
   white-space: nowrap;
 }
 
-.site-footer .footer-arcade-button {
+.footer-arcade-button {
   color: #071017;
 }
 

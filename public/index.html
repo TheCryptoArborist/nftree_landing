@@ -62,14 +62,14 @@
             Mint flow ready.
           </p>
         </div>
-        <a class="header-action" id="headerMintNowButton" href="/mint#mint" data-mint-route-link aria-label="Go to NFTree mint flow">
+        <a class="header-action" id="headerMintNowButton" href="/mint#mint" data-mint-route-link aria-label="Go to NFTree shop">
           <span aria-hidden="true">
             <svg viewBox="0 0 20 20">
               <path d="M3 10h14" />
               <path d="m11 4 6 6-6 6" />
             </svg>
           </span>
-          Mint Now
+          NFTree Shop
         </a>
       </div>
     </header>
@@ -94,7 +94,7 @@
                   <path d="M7 5a3 3 0 0 1 6 0" />
                 </svg>
               </span>
-              Mint NFTree Now
+              Open NFTree Shop
             </a>
             <a class="button button-secondary" href="#listingGrid">
               <span aria-hidden="true">
@@ -146,11 +146,11 @@
 
         <div class="acquisition-grid" id="mint" aria-label="NFTree buying options">
           <article class="acquisition-card accent" id="mintFlow" tabindex="-1">
-            <span>Mint from sales pool now</span>
-            <h3>Mint your NFTree right now</h3>
+            <span>Sales pool mint</span>
+            <h3>Mint from the active sale pool</h3>
             <p>
-              Use the highlighted mint button to mint the next available NFTree from the active sale pools instead of
-              picking one already listed by another holder.
+              This is the transaction path. Connect a wallet, review the active pool, then mint the next available
+              NFTree for 25 SUI.
             </p>
             <div class="sale-pool-summary" aria-label="NFTree sale pool inventory">
               <div>
@@ -164,7 +164,7 @@
             </div>
             <div class="sale-pool-grid" id="salePoolGrid" aria-label="Configured NFTree sale pools"></div>
             <p class="wallet-balance-summary" id="walletBalanceSummary" aria-live="polite" hidden></p>
-            <a class="button button-primary mint-now-button" id="saleMintNowButton" href="#walletPicker" data-mint-trigger>Choose wallet and mint</a>
+            <a class="button button-primary mint-now-button" id="saleMintNowButton" href="#walletPicker" data-mint-trigger>Connect wallet to mint</a>
           </article>
           <aside class="acquisition-card listing-path-card" aria-label="NFTree listing path">
             <span>Browse listed NFTrees</span>

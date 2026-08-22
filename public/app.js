@@ -844,7 +844,7 @@ function mintReadiness() {
   }
 
   if (!state.salePoolsLoaded) {
-    return { ready: false, state: "loading", message: "Sale pool inventory is still loading. Try Mint Now again in a moment." };
+    return { ready: false, state: "loading", message: "Sale pool inventory is still loading. Try the mint button again in a moment." };
   }
 
   const pool = activeSalePool();
@@ -894,7 +894,7 @@ function updateMintButtons() {
     } else if (signingState.displayConnected) {
       trigger.textContent = `Mint NFTree for ${priceLabel}`;
     } else {
-      trigger.textContent = "Choose wallet and mint";
+      trigger.textContent = "Connect wallet to mint";
     }
   });
 }
@@ -1056,7 +1056,7 @@ function openWalletPickerForMint() {
   openWalletPicker();
   setWalletStatus(MINT_MESSAGES.connectBeforeMinting, "error");
   if (state.wallets.length) {
-    setModalStatus(`${MINT_MESSAGES.connectBeforeMinting} Minting will not start until you press Mint Now after connecting.`);
+    setModalStatus(`${MINT_MESSAGES.connectBeforeMinting} Minting will not start until you press the mint button after connecting.`);
   }
 }
 

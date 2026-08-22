@@ -855,6 +855,11 @@ h1 {
   font-size: 0.86rem;
 }
 
+.hero-actions .mint-now-button {
+  width: auto;
+  min-height: 42px;
+}
+
 .top-wallet-strip .wallet-connect-button {
   flex: 0 0 auto;
   width: auto;

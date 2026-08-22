@@ -128,8 +128,8 @@
       <section class="shop-section" id="nfts" aria-labelledby="shop-title">
         <div class="section-heading">
           <div>
-            <p class="microcopy">preview or mint</p>
-            <h2 id="shop-title">Mint now or preview before you buy</h2>
+            <p class="microcopy">NFTREE SHOP</p>
+            <h2 id="shop-title">Mint or browse NFTrees</h2>
           </div>
           <div class="shop-actions">
             <button class="icon-button" id="refreshListings" type="button" aria-label="Refresh listings">
@@ -145,15 +145,6 @@
         </div>
 
         <div class="acquisition-grid" id="mint" aria-label="NFTree buying options">
-          <article class="acquisition-card">
-            <span>Preview listed NFTrees</span>
-            <h3>Shop a visible NFTree on TradePort</h3>
-            <p>
-              Preview select NFTrees before buying: artwork, number, rarity, and listed price are shown below.
-              Use this path when you want to choose a specific NFTree.
-            </p>
-            <a class="button button-secondary" href="#listingGrid">Browse previews</a>
-          </article>
           <article class="acquisition-card accent" id="mintFlow" tabindex="-1">
             <span>Mint from sales pool now</span>
             <h3>Mint your NFTree right now</h3>
@@ -175,25 +166,30 @@
             <p class="wallet-balance-summary" id="walletBalanceSummary" aria-live="polite" hidden></p>
             <a class="button button-primary mint-now-button" id="saleMintNowButton" href="#walletPicker" data-mint-trigger>Choose wallet and mint</a>
           </article>
-        </div>
-
-        <div class="stats-grid" aria-label="NFTree listing stats">
-          <div class="stat-card">
-            <span>Listed NFTrees</span>
-            <strong id="listedCount">Loading</strong>
-          </div>
-          <div class="stat-card">
-            <span>Floor price</span>
-            <strong id="floorPrice">Loading</strong>
-          </div>
-          <div class="stat-card">
-            <span>Source</span>
-            <strong>TradePort</strong>
-          </div>
-          <div class="stat-card">
-            <span>Sale pool NFTs</span>
-            <strong id="salePoolCount">Loading</strong>
-          </div>
+          <aside class="acquisition-card listing-path-card" aria-label="NFTree listing path">
+            <span>Browse listed NFTrees</span>
+            <h3>Choose a visible NFTree on TradePort</h3>
+            <p>Use listings when you want to inspect artwork, number, rarity, and listed price before buying.</p>
+            <div class="stats-grid compact" aria-label="NFTree listing stats">
+              <div class="stat-card">
+                <span>Listed</span>
+                <strong id="listedCount">Loading</strong>
+              </div>
+              <div class="stat-card">
+                <span>Floor</span>
+                <strong id="floorPrice">Loading</strong>
+              </div>
+              <div class="stat-card">
+                <span>Source</span>
+                <strong>TradePort</strong>
+              </div>
+              <div class="stat-card">
+                <span>Pool NFTs</span>
+                <strong id="salePoolCount">Loading</strong>
+              </div>
+            </div>
+            <a class="button button-secondary" href="#listingGrid">Browse listings</a>
+          </aside>
         </div>
 
         <div class="shop-toolbar" aria-label="NFTree shop filters">

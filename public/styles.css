@@ -484,14 +484,15 @@ h1 {
 
 .acquisition-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  align-items: start;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .acquisition-card {
   min-width: 0;
-  padding: 18px;
+  padding: 16px;
   background:
     linear-gradient(135deg, rgba(0, 241, 210, 0.08), transparent 56%),
     var(--panel-strong);
@@ -576,6 +577,18 @@ h1 {
 
 .acquisition-card .button {
   margin-top: 16px;
+}
+
+.listing-path-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.listing-path-card .button {
+  justify-content: center;
+  width: 100%;
+  margin-top: 14px;
 }
 
 .wallet-picker {
@@ -1094,12 +1107,23 @@ h1 {
   margin-bottom: 16px;
 }
 
+.stats-grid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
 .stat-card {
   min-height: 104px;
   padding: 18px;
   background: var(--panel-strong);
   border: 1px solid rgba(114, 213, 226, 0.2);
   border-radius: 8px;
+}
+
+.stats-grid.compact .stat-card {
+  min-height: auto;
+  padding: 10px;
 }
 
 .stat-card span {
@@ -1109,6 +1133,12 @@ h1 {
   font-weight: 700;
 }
 
+.stats-grid.compact .stat-card span {
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
 .stat-card strong {
   display: block;
   margin-top: 10px;
@@ -1116,6 +1146,11 @@ h1 {
   font-size: 1.55rem;
   font-weight: 900;
   line-height: 1;
+}
+
+.stats-grid.compact .stat-card strong {
+  margin-top: 6px;
+  font-size: 1.08rem;
 }
 
 .shop-toolbar {

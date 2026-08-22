@@ -1490,13 +1490,89 @@ h1 {
 
 .site-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 14px;
   width: min(var(--max), calc(100% - 32px));
   margin: 18px auto 30px;
   color: #a8bed4;
   font-size: 0.85rem;
+}
+
+.footer-arcade-promo {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  width: 100%;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(126, 243, 160, 0.16), transparent 30%),
+    linear-gradient(100deg, rgba(3, 28, 24, 0.9), rgba(8, 10, 28, 0.88));
+  border: 1px solid rgba(126, 243, 160, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+.footer-arcade-media {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-arcade-emblem {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+}
+
+.footer-arcade-game-logo {
+  width: 118px;
+  height: 62px;
+  object-fit: contain;
+  padding: 6px;
+  background: rgba(1, 10, 18, 0.7);
+  border: 1px solid rgba(244, 251, 255, 0.12);
+  border-radius: 8px;
+}
+
+.footer-arcade-copy {
+  min-width: 0;
+}
+
+.footer-arcade-copy span {
+  display: block;
+  color: var(--cyan);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.footer-arcade-copy strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text);
+  font-size: 1.2rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.footer-arcade-copy p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.footer-arcade-button {
+  white-space: nowrap;
+}
+
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
 }
 
 .footer-links {
@@ -1515,10 +1591,6 @@ h1 {
 .site-footer a:focus-visible {
   color: var(--cyan);
   outline: none;
-}
-
-.footer-arcade-link {
-  color: var(--text);
 }
 
 .back-to-top-button {
@@ -1596,6 +1668,15 @@ h1 {
 
   .impact-section {
     grid-template-columns: 1fr;
+  }
+
+  .footer-arcade-promo {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .footer-arcade-button {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .hero-media-stack {
@@ -1715,7 +1796,7 @@ h1 {
   }
 
   .section-heading,
-  .site-footer {
+  .footer-bottom {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -1766,6 +1847,18 @@ h1 {
   .top-wallet-strip .wallet-connect-button,
   .top-wallet-strip .wallet-disconnect-button {
     flex: 1 1 auto;
+  }
+
+  .footer-arcade-promo {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-arcade-media {
+    justify-content: space-between;
+  }
+
+  .footer-arcade-button {
+    width: 100%;
   }
 }
 

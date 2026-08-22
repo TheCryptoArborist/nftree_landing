@@ -29,27 +29,13 @@
         <a href="https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items" rel="noreferrer" target="_blank">TradePort</a>
       </nav>
       <div class="header-tools">
-        <div class="wallet-picker top-wallet-strip" id="walletPicker" aria-label="Choose a wallet before connecting">
+        <div class="wallet-picker top-wallet-strip" id="walletPicker" aria-label="Wallet connection status">
           <div class="wallet-picker-head">
             <span>Wallet</span>
-            <strong id="selectedWalletLabel">No wallet selected</strong>
-          </div>
-          <div class="wallet-options" id="walletOptions" role="group" aria-label="Wallet options">
-            <button class="wallet-option" type="button" data-wallet="Slush Wallet" aria-pressed="false">
-              <span class="wallet-icon" aria-hidden="true">S</span>
-              <span>Slush</span>
-            </button>
-            <button class="wallet-option" type="button" data-wallet="Phantom Wallet" aria-pressed="false">
-              <span class="wallet-icon" aria-hidden="true">P</span>
-              <span>Phantom</span>
-            </button>
-            <button class="wallet-option" type="button" data-wallet="Nightly Wallet" aria-pressed="false">
-              <span class="wallet-icon" aria-hidden="true">N</span>
-              <span>Nightly</span>
-            </button>
+            <strong id="selectedWalletLabel">Not connected</strong>
           </div>
           <button class="button button-primary mint-now-button wallet-connect-button" id="walletConnectButton" type="button">
-            Connect
+            Connect Wallet
           </button>
           <p class="wallet-connected-summary" id="walletConnectedSummary" hidden></p>
           <button class="button button-secondary wallet-disconnect-button" id="walletDisconnectButton" type="button" hidden>
@@ -62,15 +48,6 @@
             Mint flow ready.
           </p>
         </div>
-        <a class="header-action" id="headerMintNowButton" href="/mint#mint" data-mint-route-link aria-label="Go to NFTree shop">
-          <span aria-hidden="true">
-            <svg viewBox="0 0 20 20">
-              <path d="M3 10h14" />
-              <path d="m11 4 6 6-6 6" />
-            </svg>
-          </span>
-          NFTree Shop
-        </a>
       </div>
     </header>
 

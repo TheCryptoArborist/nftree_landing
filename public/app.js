@@ -495,6 +495,10 @@ function walletInitial(walletName) {
   return compact.slice(0, 2).toUpperCase() || "W";
 }
 
+function displayWalletName(walletName) {
+  return String(walletName || "Wallet").replace(/\s+wallet\b/i, "").trim() || "Wallet";
+}
+
 function normalizedWalletName(walletName) {
   return String(walletName || "")
     .toLowerCase()
@@ -904,7 +908,9 @@ function renderWalletState() {
   const connectedText = isConnected
     ? `Connected: ${shortenAddress(state.connectedAddress)}`
     : "";
-  const walletLabel = isConnected ? `${state.connectedWallet} / ${shortenAddress(state.connectedAddress)}` : "";
+  const walletLabel = isConnected
+    ? `${displayWalletName(state.connectedWallet)} - ${shortenAddress(state.connectedAddress)}`
+    : "";
 
   if (isConnected) {
     elements.selectedWalletLabel.textContent = walletLabel;
@@ -925,11 +931,20 @@ function renderWalletState() {
   if (!state.wallets.length) {
     elements.selectedWalletLabel.textContent = "No wallet detected";
   } else {
-    elements.selectedWalletLabel.textContent = "No wallet selected";
+    elements.selectedWalletLabel.textContent = "Not connected";
   }
 }
 
 function updateWalletButton() {
+  elements.walletConnectButton.hidden = false;
+
+  if (state.connectedAddress) {
+    elements.walletConnectButton.hidden = true;
+    elements.walletConnectButton.disabled = true;
+    elements.walletConnectButton.textContent = "Connect Wallet";
+    return;
+  }
+
   if (state.isConnecting) {
     elements.walletConnectButton.textContent = "Connecting...";
     elements.walletConnectButton.disabled = true;
@@ -948,8 +963,8 @@ function updateWalletButton() {
     return;
   }
 
-  elements.walletConnectButton.textContent = state.connectedAddress ? "Connected" : "Connect";
-  elements.walletConnectButton.disabled = Boolean(state.connectedAddress);
+  elements.walletConnectButton.textContent = "Connect Wallet";
+  elements.walletConnectButton.disabled = false;
 }
 
 function setWallets(wallets) {
@@ -1344,7 +1359,7 @@ async function mintConnectedWallet() {
   }
 }
 
-elements.walletOptions.addEventListener("click", (event) => {
+elements.walletOptions?.addEventListener("click", (event) => {
   const button = event.target.closest(".wallet-option");
   if (!button) return;
   openWalletPicker(button.dataset.wallet || "");

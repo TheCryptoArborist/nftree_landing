@@ -112,6 +112,7 @@ const state = {
 
 const elements = {
   activePoolLabel: document.querySelector("#activePoolLabel"),
+  backToTopButton: document.querySelector("#backToTopButton"),
   floorPrice: document.querySelector("#floorPrice"),
   listedCount: document.querySelector("#listedCount"),
   listingGrid: document.querySelector("#listingGrid"),
@@ -254,6 +255,15 @@ function focusMintRouteIfNeeded() {
   if (isMintRoute()) {
     focusMintSection({ updateHash: window.location.hash !== "#mint" });
   }
+}
+
+function updateBackToTopButton() {
+  if (!elements.backToTopButton) return;
+  elements.backToTopButton.hidden = window.scrollY < 640;
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function salePoolRange(pool) {
@@ -1409,11 +1419,15 @@ elements.walletConnectButton.addEventListener("click", () => {
 });
 
 elements.walletDisconnectButton.addEventListener("click", disconnectWallet);
+elements.backToTopButton?.addEventListener("click", scrollToTop);
+window.addEventListener("scroll", updateBackToTopButton, { passive: true });
+window.addEventListener("resize", updateBackToTopButton);
 
 refreshWallets();
 window.NFTreeWalletMint?.onWalletsChanged?.(setWallets);
 renderWalletState();
 updateMintButtons();
+updateBackToTopButton();
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", focusMintRouteIfNeeded, { once: true });
 } else {

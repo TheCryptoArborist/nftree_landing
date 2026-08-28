@@ -7,6 +7,10 @@ const MINT_CONFIG_ID = "0xe83616020f61f73b30c40fd3f888ed397626afd071bd4666374c30
 const MINT_PRICE_MIST = "25000000000";
 const GAS_WARNING_BUFFER_MIST = "100000000";
 const DEBUG_MINT = new URLSearchParams(window.location.search).get("debugMint") === "1";
+const REFERRAL_STORAGE_KEY = "nftreeReferral";
+const REFERRAL_NAMES = Object.freeze({
+  "mischief-finance": "Mischief Finance",
+});
 const MINT_MESSAGES = Object.freeze({
   walletDisconnected: "Wallet disconnected.",
   connectBeforeMinting: "Connect a Sui wallet before minting.",
@@ -106,6 +110,8 @@ const state = {
   isConnecting: false,
   isDisconnecting: false,
   isMinting: false,
+  referralCode: "",
+  referralName: "",
   salePoolsLoaded: false,
   salePoolStatus: fallbackSalePoolStatus,
 };
@@ -121,6 +127,7 @@ const elements = {
   mintContractStatus: document.querySelector("#mintContractStatus"),
   mintPoolCount: document.querySelector("#mintPoolCount"),
   refreshListings: document.querySelector("#refreshListings"),
+  referralSummary: document.querySelector("#referralSummary"),
   salePoolCount: document.querySelector("#salePoolCount"),
   salePoolGrid: document.querySelector("#salePoolGrid"),
   saleMintNowButton: document.querySelector("#saleMintNowButton"),
@@ -224,6 +231,83 @@ function nextFrame() {
 
 function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function normalizeReferralCode(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+function referralNameFromCode(code) {
+  if (REFERRAL_NAMES[code]) return REFERRAL_NAMES[code];
+  return code
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function readStoredReferral() {
+  try {
+    const payload = JSON.parse(window.localStorage.getItem(REFERRAL_STORAGE_KEY) || "{}");
+    const code = normalizeReferralCode(payload.code);
+    if (!code) return null;
+    return {
+      code,
+      name: String(payload.name || referralNameFromCode(code)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveReferral(code, name) {
+  const payload = {
+    code,
+    name,
+    sourcePath: window.location.pathname,
+    savedAt: new Date().toISOString(),
+  };
+
+  try {
+    window.localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(payload));
+  } catch {}
+
+  document.cookie = `nftreeReferral=${encodeURIComponent(code)}; path=/; max-age=2592000; SameSite=Lax`;
+}
+
+function renderReferralState() {
+  if (!elements.referralSummary) return;
+
+  if (!state.referralCode) {
+    elements.referralSummary.hidden = true;
+    elements.referralSummary.textContent = "";
+    return;
+  }
+
+  elements.referralSummary.textContent = `Referral source: ${state.referralName}.`;
+  elements.referralSummary.hidden = false;
+}
+
+function captureReferralSource() {
+  const params = new URLSearchParams(window.location.search);
+  const code = normalizeReferralCode(params.get("ref") || params.get("ambassador") || "");
+  const stored = code ? null : readStoredReferral();
+  const referralCode = code || stored?.code || "";
+  const referralName = referralCode ? referralNameFromCode(referralCode) : "";
+
+  state.referralCode = referralCode;
+  state.referralName = referralName;
+
+  if (referralCode && code) {
+    saveReferral(referralCode, referralName);
+  }
+
+  renderReferralState();
 }
 
 function isMintRoute(pathname = window.location.pathname) {
@@ -1333,7 +1417,8 @@ async function mintConnectedWallet() {
     const explorerUrl = suiExplorerTxUrl(digest);
     const successMessage =
       `Mint succeeded. Transaction digest: ${escapeHtml(digest)}. ` +
-      `<a href="${escapeHtml(explorerUrl)}" target="_blank" rel="noreferrer">View on Sui Explorer</a>`;
+      `<a href="${escapeHtml(explorerUrl)}" target="_blank" rel="noreferrer">View on Sui Explorer</a>` +
+      (state.referralCode ? ` Referral source: ${escapeHtml(state.referralName)}.` : "");
     await loadSalePools();
     refreshConnectedBalance();
     setWalletStatus(`Mint succeeded through ${result.walletName}.`, "ready");
@@ -1343,6 +1428,8 @@ async function mintConnectedWallet() {
       explorerUrl,
       walletName: result.walletName,
       poolId: result.poolId || "",
+      referralCode: state.referralCode,
+      referralName: state.referralName,
     });
   } catch (error) {
     const message = mintErrorMessage(error, "Wallet mint was not completed.");
@@ -1438,6 +1525,7 @@ elements.backToTopButton?.addEventListener("click", scrollToTop);
 window.addEventListener("scroll", updateBackToTopButton, { passive: true });
 window.addEventListener("resize", updateBackToTopButton);
 
+captureReferralSource();
 refreshWallets();
 window.NFTreeWalletMint?.onWalletsChanged?.(setWallets);
 renderWalletState();

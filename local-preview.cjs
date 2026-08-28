@@ -115,13 +115,12 @@ const server = http.createServer((req, res) => {
   }
 
   if (requestUrl.pathname === "/mint" || requestUrl.pathname === "/mint/") {
-    res.writeHead(302, { Location: "/#mint" });
-    res.end();
+    sendIndex(res);
     return;
   }
 
   const relativePath = requestUrl.pathname === "/" ? "index.html" : decodeURIComponent(requestUrl.pathname).replace(/^\/+/, "");
-  const targetPath = path.normalize(path.join(root, relativePath));
+  let targetPath = path.normalize(path.join(root, relativePath));
   const relativeToRoot = path.relative(root, targetPath);
 
   if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) {
@@ -129,6 +128,12 @@ const server = http.createServer((req, res) => {
     res.end("Forbidden");
     return;
   }
+
+  try {
+    if (fs.statSync(targetPath).isDirectory()) {
+      targetPath = path.join(targetPath, "index.html");
+    }
+  } catch {}
 
   fs.readFile(targetPath, (error, data) => {
     if (error) {

@@ -1611,6 +1611,34 @@ h1 {
   justify-content: center;
 }
 
+.ambassador-logo-lockup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.ambassador-logo-lockup img {
+  display: block;
+  flex: 0 0 88px;
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 216, 75, 0.52);
+  border-radius: 50%;
+  box-shadow:
+    0 0 24px rgba(255, 216, 75, 0.18),
+    0 0 34px rgba(0, 241, 210, 0.1);
+}
+
+.ambassador-logo-lockup span {
+  color: var(--gold);
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .ambassador-hero h1 {
   max-width: 760px;
   font-size: 5.2rem;
@@ -1672,11 +1700,24 @@ h1 {
   bottom: 18px;
   left: 18px;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 13px;
   padding: 16px;
   background: rgba(3, 8, 16, 0.78);
   border: 1px solid rgba(0, 241, 210, 0.28);
   border-radius: 8px;
   backdrop-filter: blur(10px);
+}
+
+.ambassador-badge img {
+  display: block;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 216, 75, 0.46);
+  border-radius: 50%;
 }
 
 .ambassador-badge span,
@@ -1932,6 +1973,12 @@ h1 {
 
   .ambassador-hero h1 {
     font-size: 3rem;
+  }
+
+  .ambassador-logo-lockup img {
+    flex-basis: 68px;
+    width: 68px;
+    height: 68px;
   }
 
   .ambassador-lede {

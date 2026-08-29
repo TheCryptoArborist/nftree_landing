@@ -1,8 +1,20 @@
 import { getStore } from "@netlify/blobs";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
-import { createReferralChallenge, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "./referral-core.mjs";
+import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
+import { cleanupExpiredChallenges, createReferralChallenge, enforceChallengeRateLimit, normalizeWalletAddress, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "./referral-core.mjs";
 
 const RPC_URL = process.env.SUI_JSON_RPC_URL || "https://fullnode.mainnet.sui.io:443";
+const suiClient = new SuiJsonRpcClient({ url: RPC_URL });
+
+async function sourceHash(request) {
+  const source = (request.headers.get("x-nf-client-connection-ip") || request.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim().slice(0, 128);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export function personalMessageVerifier(client = suiClient, verifier = verifyPersonalMessageSignature) {
+  return (message, signature, address) => verifier(message, signature, { address, client });
+}
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -34,8 +46,11 @@ export default async (request) => {
     const input = await request.json();
     const store = getStore("nftree-referrals");
     if (input.action === "challenge") {
+      const walletAddress = normalizeWalletAddress(input.walletAddress);
+      await enforceChallengeRateLimit(store, walletAddress, await sourceHash(request));
+      await cleanupExpiredChallenges(store).catch(() => {});
       const challenge = createReferralChallenge({
-        id: crypto.randomUUID(), walletAddress: input.walletAddress, referralCode: input.referralCode,
+        id: crypto.randomUUID(), walletAddress, referralCode: input.referralCode,
       });
       await store.setJSON(`challenges/${challenge.id}`, challenge, { onlyIfNew: true });
       return response({ challengeId: challenge.id, message: challenge.message, expiresAt: challenge.expiresAt });
@@ -50,13 +65,14 @@ export default async (request) => {
     await verifyReferralClaim(
       input,
       store,
-      (message, signature, address) => verifyPersonalMessageSignature(message, signature, { address }),
+      personalMessageVerifier(),
       Date.parse(record.transactionTimestamp),
     );
     const result = await recordOnce(store, record);
     return response({ recorded: true, duplicate: result.duplicate, transactionDigest: record.transactionDigest });
   } catch (error) {
-    return response({ error: error instanceof Error ? error.message : "Referral attribution failed." }, 422);
+    const message = error instanceof Error ? error.message : "Referral attribution failed.";
+    return response({ error: message }, message.includes("rate limit") ? 429 : 422);
   }
 };
 

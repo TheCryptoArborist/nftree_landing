@@ -1,5 +1,6 @@
 import { getStore } from "@netlify/blobs";
-import { recordOnce, verifiedReferralRecord } from "./referral-core.mjs";
+import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
+import { createReferralChallenge, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "./referral-core.mjs";
 
 const RPC_URL = process.env.SUI_JSON_RPC_URL || "https://fullnode.mainnet.sui.io:443";
 
@@ -29,15 +30,27 @@ export async function fetchTransaction(digest, fetchImpl = fetch) {
 
 export default async (request) => {
   if (request.method !== "POST") return response({ error: "Method not allowed." }, 405);
-  if (process.env.CONTEXT !== "production") {
-    return response({ error: "Referral records are disabled outside the production deploy." }, 403);
-  }
   try {
     const input = await request.json();
+    const store = getStore("nftree-referrals");
+    if (input.action === "challenge") {
+      const challenge = createReferralChallenge({
+        id: crypto.randomUUID(), walletAddress: input.walletAddress, referralCode: input.referralCode,
+      });
+      await store.setJSON(`challenges/${challenge.id}`, challenge, { onlyIfNew: true });
+      return response({ challengeId: challenge.id, message: challenge.message, expiresAt: challenge.expiresAt });
+    }
+    if (process.env.CONTEXT !== "production") {
+      return response({ error: "Referral records are disabled outside the production deploy." }, 403);
+    }
     if (!input.digest || !input.walletAddress || !input.poolId) return response({ error: "Missing mint details." }, 400);
+    if (!input.challengeId || !input.signature) return response({ error: "Missing signed referral claim." }, 400);
+    await verifyReferralClaim(input, store, (message, signature, address) =>
+      verifyPersonalMessageSignature(message, signature, { address }),
+    );
     const tx = await fetchTransaction(String(input.digest));
     const record = verifiedReferralRecord(input, tx);
-    const result = await recordOnce(getStore("nftree-referrals"), record);
+    const result = await recordOnce(store, record);
     return response({ recorded: true, duplicate: result.duplicate, transactionDigest: record.transactionDigest });
   } catch (error) {
     return response({ error: error instanceof Error ? error.message : "Referral attribution failed." }, 422);

@@ -8,6 +8,49 @@ export const PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d83
 export const MINT_PRICE_MIST = "25000000000";
 
 const normalize = (value) => String(value || "").toLowerCase();
+export const CHALLENGE_MAX_AGE_MS = 10 * 60 * 1000;
+
+export function referralChallengeMessage(challenge) {
+  return [
+    "NFTree referral attribution",
+    `Challenge: ${challenge.id}`,
+    `Wallet: ${challenge.walletAddress}`,
+    `Referral: ${challenge.referralCode}`,
+    `Issued: ${challenge.issuedAt}`,
+    `Expires: ${challenge.expiresAt}`,
+  ].join("\n");
+}
+
+export function createReferralChallenge({ id, walletAddress, referralCode }, now = Date.now()) {
+  if (referralCode !== ALLOWED_REFERRAL.code) throw new Error("Unknown referral code.");
+  const wallet = normalize(walletAddress);
+  if (!id || !wallet) throw new Error("Missing referral challenge details.");
+  const challenge = {
+    id: String(id), walletAddress: wallet, referralCode,
+    issuedAt: new Date(now).toISOString(), expiresAt: new Date(now + CHALLENGE_MAX_AGE_MS).toISOString(),
+  };
+  return { ...challenge, message: referralChallengeMessage(challenge) };
+}
+
+export async function verifyReferralClaim(input, store, verifySignature, now = Date.now()) {
+  const challenge = await store.get(`challenges/${input.challengeId}`, { type: "json" });
+  if (!challenge) throw new Error("Referral challenge was not found.");
+  if (Date.parse(challenge.expiresAt) <= now) throw new Error("Referral challenge expired.");
+  if (challenge.referralCode !== input.referralCode || challenge.walletAddress !== normalize(input.walletAddress)) {
+    throw new Error("Referral challenge does not match this wallet.");
+  }
+  await verifySignature(new TextEncoder().encode(referralChallengeMessage(challenge)), input.signature, challenge.walletAddress);
+  const claimKey = `claims/${challenge.id}`;
+  const existing = await store.get(claimKey, { type: "json" });
+  if (existing && existing.digest !== input.digest) throw new Error("Referral challenge was already used.");
+  if (!existing) {
+    try { await store.setJSON(claimKey, { digest: input.digest }, { onlyIfNew: true }); }
+    catch (error) {
+      const raced = await store.get(claimKey, { type: "json" });
+      if (!raced || raced.digest !== input.digest) throw error;
+    }
+  }
+}
 
 function transactionParts(tx) {
   const data = tx?.transaction?.data || tx?.transaction || {};

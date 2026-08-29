@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readStoredReferral, REFERRAL_MAX_AGE_MS } from "../public/referral-storage.js";
-import { PACKAGE_ID, recordOnce, verifiedReferralRecord } from "../netlify/functions/referral-core.mjs";
+import { createReferralChallenge, PACKAGE_ID, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "../netlify/functions/referral-core.mjs";
 
 const POOL = "0x8cb91464eec7ada1af801a439207647d78de66bc0d4f124d6437091745a0163a";
 const WALLET = "0x123";
@@ -82,4 +82,38 @@ test("valid successful sales-pool mint is recorded once", async () => {
   assert.equal((await recordOnce(store, record)).duplicate, true);
   assert.equal(values.size, 1);
   assert.equal(record.commissionAmountDueMist, "1250000000");
+});
+
+test("signed referral challenge is wallet-bound, one-time, and safely retryable for one digest", async () => {
+  const values = new Map();
+  const store = {
+    get: async (key) => values.get(key) || null,
+    setJSON: async (key, value, options) => {
+      assert.equal(options.onlyIfNew, true);
+      if (values.has(key)) throw new Error("already exists");
+      values.set(key, value);
+    },
+  };
+  const now = 1_700_000_000_000;
+  const challenge = createReferralChallenge({ id: "challenge-1", walletAddress: WALLET, referralCode: "mischief-finance" }, now);
+  values.set("challenges/challenge-1", challenge);
+  const claim = { ...input, challengeId: challenge.id, signature: "wallet-signature" };
+  let verified = 0;
+  const verifier = async (message, signature, address) => {
+    assert.equal(new TextDecoder().decode(message), challenge.message);
+    assert.equal(signature, "wallet-signature");
+    assert.equal(address, WALLET);
+    verified += 1;
+  };
+  await verifyReferralClaim(claim, store, verifier, now + 1000);
+  await verifyReferralClaim(claim, store, verifier, now + 1000);
+  assert.equal(verified, 2);
+  await assert.rejects(
+    verifyReferralClaim({ ...claim, digest: "digest-2" }, store, verifier, now + 1000),
+    /already used/,
+  );
+  await assert.rejects(
+    verifyReferralClaim({ ...claim, walletAddress: "0xwrong" }, store, verifier, now + 1000),
+    /does not match/,
+  );
 });

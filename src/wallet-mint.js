@@ -9,6 +9,8 @@ import {
   getWallets,
 } from "@mysten/wallet-standard";
 
+const SUI_SIGN_PERSONAL_MESSAGE = "sui:signPersonalMessage";
+
 const MAINNET_CHAIN = "sui:mainnet";
 const SUI_COIN_TYPE = "0x2::sui::SUI";
 const SUI_RPC_URL = "https://fullnode.mainnet.sui.io:443";
@@ -75,6 +77,21 @@ function walletSupportsSui(wallet) {
 
 function hasSigningFeature(wallet) {
   return Boolean(wallet?.features?.[SuiSignAndExecuteTransaction] || wallet?.features?.[SuiSignAndExecuteTransactionBlock]);
+}
+
+async function signReferralClaim({ walletName, accountAddress, message }) {
+  const wallet = findWallet(walletName);
+  const account = wallet && getConnectedAccount(wallet, accountAddress);
+  const feature = wallet?.features?.[SUI_SIGN_PERSONAL_MESSAGE];
+  if (!wallet || !account?.address || !feature?.signPersonalMessage) {
+    throw new Error("This wallet cannot sign the referral verification message.");
+  }
+  const result = await feature.signPersonalMessage({
+    account,
+    message: new TextEncoder().encode(String(message)),
+  });
+  if (!result?.signature) throw new Error("The wallet did not return a referral verification signature.");
+  return { signature: result.signature };
 }
 
 function hasConnectFeature(wallet) {
@@ -526,4 +543,5 @@ window.NFTreeWalletMint = {
   mintWithConnectedWallet,
   onConnectedWalletChange,
   onWalletsChanged,
+  signReferralClaim,
 };

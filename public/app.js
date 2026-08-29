@@ -10,6 +10,7 @@ const MINT_PRICE_MIST = "25000000000";
 const GAS_WARNING_BUFFER_MIST = "100000000";
 const DEBUG_MINT = new URLSearchParams(window.location.search).get("debugMint") === "1";
 const REFERRAL_STORAGE_KEY = "nftreeReferral";
+const REFERRAL_PENDING_KEY = "nftreePendingReferralClaims";
 const CONNECTED_WALLET_STORAGE_KEY = "nftreeConnectedWallet";
 const REFERRAL_NAMES = Object.freeze({
   "mischief-finance": "Mischief Finance",
@@ -331,6 +332,45 @@ function captureReferralSource() {
   }
 
   renderReferralState();
+}
+
+async function referralRequest(body) {
+  const response = await fetch("/api/nftree-referral", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "Referral attribution was not saved.");
+  return payload;
+}
+
+function pendingReferralClaims() {
+  try { return JSON.parse(window.localStorage.getItem(REFERRAL_PENDING_KEY) || "[]"); } catch { return []; }
+}
+
+function savePendingReferralClaims(claims) {
+  try { window.localStorage.setItem(REFERRAL_PENDING_KEY, JSON.stringify(claims)); } catch {}
+}
+
+async function recordReferralWithRetry(claim, attempts = 3) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try { return await referralRequest(claim); }
+    catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts) await wait(500 * (2 ** attempt));
+    }
+  }
+  throw lastError;
+}
+
+async function retryPendingReferralClaims() {
+  const pending = pendingReferralClaims();
+  if (!pending.length) return;
+  const remaining = [];
+  for (const claim of pending) {
+    try { await recordReferralWithRetry(claim, 2); } catch { remaining.push(claim); }
+  }
+  savePendingReferralClaims(remaining);
 }
 
 function isMintRoute(pathname = window.location.pathname) {
@@ -1463,6 +1503,23 @@ async function mintConnectedWallet() {
       throw new Error("The NFTree wallet module cannot mint with the connected wallet yet. Refresh the page and try again.");
     }
 
+    const walletAddress = signingState.signingAccountAddress || state.connectedAddress;
+    let signedReferralClaim = null;
+    if (state.referralCode) {
+      const challenge = await referralRequest({
+        action: "challenge", walletAddress, referralCode: state.referralCode,
+      });
+      const signed = await walletModule.signReferralClaim({
+        walletName: signingState.signingWalletName || state.connectedWallet,
+        accountAddress: walletAddress,
+        message: challenge.message,
+      });
+      signedReferralClaim = {
+        challengeId: challenge.challengeId, signature: signed.signature,
+        walletAddress, referralCode: state.referralCode,
+      };
+    }
+
     const result = await walletModule.mintWithConnectedWallet({
       walletName: signingState.signingWalletName || state.connectedWallet,
       accountAddress: signingState.signingAccountAddress || state.connectedAddress,
@@ -1474,21 +1531,20 @@ async function mintConnectedWallet() {
     let referralMessage = "";
     if (state.referralCode) {
       try {
-        const attributionResponse = await fetch("/api/nftree-referral", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
+        const claim = {
             digest,
-            walletAddress: signingState.signingAccountAddress || state.connectedAddress,
             poolId: result.poolId || pool?.poolId || "",
-            referralCode: state.referralCode,
-          }),
-        });
-        const attribution = await attributionResponse.json();
-        if (!attributionResponse.ok) throw new Error(attribution.error || "Referral attribution was not saved.");
+            ...signedReferralClaim,
+        };
+        await recordReferralWithRetry(claim);
+        savePendingReferralClaims(pendingReferralClaims().filter((item) => item.digest !== digest));
         referralMessage = ` Referral recorded for ${escapeHtml(state.referralName)}.`;
       } catch (attributionError) {
-        referralMessage = ` The NFT mint succeeded, but referral attribution could not be recorded: ${escapeHtml(attributionError.message)}.`;
+        const claim = { digest, poolId: result.poolId || pool?.poolId || "", ...signedReferralClaim };
+        const pending = pendingReferralClaims().filter((item) => item.digest !== digest);
+        pending.push(claim);
+        savePendingReferralClaims(pending);
+        referralMessage = ` The NFT mint succeeded, but referral attribution is pending and will be retried: ${escapeHtml(attributionError.message)}.`;
       }
     }
     const successMessage =
@@ -1602,6 +1658,7 @@ window.addEventListener("scroll", updateBackToTopButton, { passive: true });
 window.addEventListener("resize", updateBackToTopButton);
 
 captureReferralSource();
+retryPendingReferralClaims();
 refreshWallets();
 window.NFTreeWalletMint?.onWalletsChanged?.(setWallets);
 renderWalletState();

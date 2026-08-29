@@ -1,3 +1,5 @@
+import { ALLOWED_REFERRAL_CODE, readStoredReferral } from "/referral-storage.js";
+
 const API_URL = "/api/nftree-listings";
 const SALE_POOL_API_URL = "/api/nftree-sale-pools";
 const COLLECTION_URL =
@@ -252,20 +254,6 @@ function referralNameFromCode(code) {
     .join(" ");
 }
 
-function readStoredReferral() {
-  try {
-    const payload = JSON.parse(window.localStorage.getItem(REFERRAL_STORAGE_KEY) || "{}");
-    const code = normalizeReferralCode(payload.code);
-    if (!code) return null;
-    return {
-      code,
-      name: String(payload.name || referralNameFromCode(code)),
-    };
-  } catch {
-    return null;
-  }
-}
-
 function saveReferral(code, name) {
   const payload = {
     code,
@@ -329,7 +317,8 @@ function renderReferralState() {
 
 function captureReferralSource() {
   const params = new URLSearchParams(window.location.search);
-  const code = normalizeReferralCode(params.get("ref") || params.get("ambassador") || "");
+  const requestedCode = normalizeReferralCode(params.get("ref") || params.get("ambassador") || "");
+  const code = requestedCode === ALLOWED_REFERRAL_CODE ? requestedCode : "";
   const stored = code ? null : readStoredReferral();
   const referralCode = code || stored?.code || "";
   const referralName = referralCode ? referralNameFromCode(referralCode) : "";
@@ -1482,10 +1471,30 @@ async function mintConnectedWallet() {
 
     const digest = String(result.digest || "");
     const explorerUrl = suiExplorerTxUrl(digest);
+    let referralMessage = "";
+    if (state.referralCode) {
+      try {
+        const attributionResponse = await fetch("/api/nftree-referral", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            digest,
+            walletAddress: signingState.signingAccountAddress || state.connectedAddress,
+            poolId: result.poolId || pool?.poolId || "",
+            referralCode: state.referralCode,
+          }),
+        });
+        const attribution = await attributionResponse.json();
+        if (!attributionResponse.ok) throw new Error(attribution.error || "Referral attribution was not saved.");
+        referralMessage = ` Referral recorded for ${escapeHtml(state.referralName)}.`;
+      } catch (attributionError) {
+        referralMessage = ` The NFT mint succeeded, but referral attribution could not be recorded: ${escapeHtml(attributionError.message)}.`;
+      }
+    }
     const successMessage =
       `Mint succeeded. Transaction digest: ${escapeHtml(digest)}. ` +
       `<a href="${escapeHtml(explorerUrl)}" target="_blank" rel="noreferrer">View on Sui Explorer</a>` +
-      (state.referralCode ? ` Referral source: ${escapeHtml(state.referralName)}.` : "");
+      referralMessage;
     await loadSalePools();
     refreshConnectedBalance();
     setWalletStatus(`Mint succeeded through ${result.walletName}.`, "ready");

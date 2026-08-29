@@ -31,7 +31,7 @@ function validTransaction(overrides = {}, paymentMist = "30000000000") {
             { Pure: { value: paymentMist } },
           ],
           transactions: [
-            { SplitCoins: [{ GasCoin: true }, [{ Input: 1 }]] },
+            { SplitCoins: ["GasCoin", [{ Input: 1 }]] },
             { MoveCall: {
               package: PACKAGE_ID,
               module: "collection",
@@ -102,8 +102,13 @@ test("expired authorization proof is retained for delayed claims, then cleaned u
 test("personal-message verification supplies address and Sui client", async () => {
   const client = { network: "test" };
   let options;
-  await personalMessageVerifier(client, async (_message, _signature, received) => { options = received; })(new Uint8Array(), "sig", WALLET);
+  await personalMessageVerifier(client, async (_message, _signature, received) => { options = received; return true; })(new Uint8Array(), "sig", WALLET);
   assert.deepEqual(options, { address: WALLET, client });
+
+  await assert.rejects(
+    personalMessageVerifier(client, async () => false)(new Uint8Array(), "bad", WALLET),
+    (error) => error.status === 422 && error.transient === false,
+  );
 });
 
 const input = { digest: "digest-1", walletAddress: WALLET, poolId: POOL, referralCode: "mischief-finance" };
@@ -145,6 +150,20 @@ test("canonical application-generated payment is accepted and determines commiss
   const record = verifiedReferralRecord(input, validTransaction({}, "100000000000"));
   assert.equal(record.mintPriceMist, "100000000000");
   assert.equal(record.commissionAmountDueMist, "5000000000");
+});
+
+test("canonical split source accepts only literal GasCoin or its legitimate object form", () => {
+  const unrelatedString = validTransaction();
+  unrelatedString.transaction.data.transaction.transactions[0].SplitCoins[0] = "Coin";
+  assert.throws(() => verifiedReferralRecord(input, unrelatedString), /payment amount is unavailable/);
+
+  const nonGasInput = validTransaction();
+  nonGasInput.transaction.data.transaction.transactions[0].SplitCoins[0] = { Input: 0 };
+  assert.throws(() => verifiedReferralRecord(input, nonGasInput), /payment amount is unavailable/);
+
+  const objectGasCoin = validTransaction();
+  objectGasCoin.transaction.data.transaction.transactions[0].SplitCoins[0] = { GasCoin: true };
+  assert.equal(verifiedReferralRecord(input, objectGasCoin).mintPriceMist, "30000000000");
 });
 
 test("payment coin split after its verified split is rejected", () => {
@@ -374,6 +393,35 @@ test("record endpoint authenticates before making any Sui RPC call", async () =>
   });
   const badResponse = await rejected(new Request("https://example.test/api", { method: "POST", body: JSON.stringify(body) }));
   assert.equal(badResponse.status, 422);
+  const badPayload = await badResponse.json();
+  const permanentError = new ReferralRequestError(badPayload.error, badResponse.status);
+  assert.equal(shouldRetryReferral(permanentError), false);
+  assert.equal(shouldRetryReferral(permanentError) ? nextPendingClaim(body, now) : null, null);
+  assert.equal(rpcCalls, 0);
+
+  const unavailable = createReferralHandler({
+    getReferralStore: () => store, context: () => "production",
+    verifySignature: async () => { throw Object.assign(new Error("upstream details"), { status: 503, transient: true }); },
+    fetchTransactionImpl: async () => { rpcCalls += 1; return validTransaction({ timestampMs: now + 1000 }); },
+  });
+  const unavailableResponse = await unavailable(new Request("https://example.test/api", { method: "POST", body: JSON.stringify(body) }));
+  const unavailablePayload = await unavailableResponse.json();
+  assert.equal(unavailableResponse.status, 503);
+  assert.equal(unavailablePayload.error, "Referral signature verification is temporarily unavailable.");
+  assert.equal(shouldRetryReferral(new ReferralRequestError(unavailablePayload.error, unavailableResponse.status)), true);
+  assert.equal(rpcCalls, 0);
+
+  const networkFailure = createReferralHandler({
+    getReferralStore: () => store, context: () => "production",
+    verifySignature: async () => { throw new Error("JWK fetch failed"); },
+    fetchTransactionImpl: async () => { rpcCalls += 1; return validTransaction({ timestampMs: now + 1000 }); },
+  });
+  const networkResponse = await networkFailure(new Request("https://example.test/api", { method: "POST", body: JSON.stringify(body) }));
+  const networkPayload = await networkResponse.json();
+  const networkError = new ReferralRequestError(networkPayload.error, networkResponse.status);
+  assert.equal(networkResponse.status, 503);
+  assert.equal(shouldRetryReferral(networkError), true);
+  assert.ok(nextPendingClaim(body, now));
   assert.equal(rpcCalls, 0);
 
   const order = [];

@@ -42,6 +42,32 @@ export function createReferralChallenge({ id, walletAddress, referralCode }, now
   return { ...challenge, message: referralChallengeMessage(challenge) };
 }
 
+function signatureVerificationError(error) {
+  const rawStatus = Number(error?.status ?? error?.statusCode ?? error?.response?.status);
+  const status = Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599 ? rawStatus : null;
+  const code = String(error?.code ?? error?.cause?.code ?? "").toUpperCase();
+  const name = String(error?.name || "");
+  const message = error instanceof Error ? error.message : "";
+  const hasStructuredSignal = status !== null || typeof error?.transient === "boolean" ||
+    typeof error?.retryable === "boolean" || Boolean(code);
+  const retryableStatus = status !== null && ([408, 425, 429].includes(status) || status >= 500);
+  const retryableCode = /^(?:ABORT_ERR|ECONNREFUSED|ECONNRESET|ENETUNREACH|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|UND_ERR_)/.test(code);
+  const retryableFallback = !hasStructuredSignal && (
+    /^(?:AbortError|TimeoutError)$/.test(name) ||
+    /\b(?:JWK|network|fetch failed|RPC|Sui client|timed? out|timeout|rate limit|service unavailable)\b/i.test(message)
+  );
+  const knownInvalidSignature = /(?:signature (?:is )?not valid|invalid signature|signature mismatch|malformed signature|invalid signature scheme|public key bytes do not match|proof does not match address)/i.test(message);
+  const transient = error?.transient === true || error?.retryable === true || retryableStatus || retryableCode || retryableFallback;
+
+  if (transient || (!knownInvalidSignature && !hasStructuredSignal)) {
+    return Object.assign(new Error("Referral signature verification is temporarily unavailable."), {
+      status: retryableStatus ? status : 503,
+      transient: true,
+    });
+  }
+  return Object.assign(new Error("Referral signature verification failed."), { status: status || 422, transient: false });
+}
+
 export async function authenticateReferralClaim(input, store, verifySignature) {
   const claimKey = `claims/${input.challengeId}`;
   const existing = await store.get(claimKey, { type: "json" });
@@ -64,8 +90,8 @@ export async function authenticateReferralClaim(input, store, verifySignature) {
   }
   try {
     await verifySignature(new TextEncoder().encode(referralChallengeMessage(challenge)), input.signature, challenge.walletAddress);
-  } catch {
-    throw new Error("Referral signature verification failed.");
+  } catch (error) {
+    throw signatureVerificationError(error);
   }
   return { existing: null, challenge, issuedAt, expiresAt };
 }
@@ -225,7 +251,7 @@ function purchasePaymentMist(data, commands, purchaseIndex, call) {
   const amountCount = Array.isArray(split) ? split[1]?.length : split?.amounts?.length;
   const amountIndex = inputIndex(amountArgument);
   const amount = amountIndex === null ? null : pureInputValue(data.transaction?.inputs?.[amountIndex]);
-  const splitsGas = splitSource?.GasCoin === true || splitSource?.gasCoin === true;
+  const splitsGas = splitSource === "GasCoin" || splitSource?.GasCoin === true || splitSource?.gasCoin === true;
   const interveningUse = commands
     .slice(reference.commandIndex + 1, purchaseIndex)
     .some((command) => referencesResult(command, reference.commandIndex, 0));

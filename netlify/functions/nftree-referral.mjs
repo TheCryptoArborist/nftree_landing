@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
+import { isValidPersonalMessageSignature } from "@mysten/sui/verify";
 import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import { activeChallengeKey, authenticateReferralClaim, cleanupExpiredChallenges, createReferralChallenge, enforceChallengeRateLimit, finalizeReferralClaim, findActiveChallenge, normalizeWalletAddress, recordOnce, reserveReferralClaim, validateClaimTransactionWindow, verifiedReferralRecord } from "./referral-core.mjs";
 
@@ -12,8 +12,13 @@ async function sourceHash(request) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export function personalMessageVerifier(client = suiClient, verifier = verifyPersonalMessageSignature) {
-  return (message, signature, address) => verifier(message, signature, { address, client });
+export function personalMessageVerifier(client = suiClient, verifier = isValidPersonalMessageSignature) {
+  return async (message, signature, address) => {
+    const valid = await verifier(message, signature, { address, client });
+    if (!valid) {
+      throw Object.assign(new Error("Referral signature verification failed."), { status: 422, transient: false });
+    }
+  };
 }
 
 function response(body, status = 200) {
@@ -84,7 +89,12 @@ export function createReferralHandler({
     } catch (error) {
       const message = error instanceof Error ? error.message : "Referral attribution failed.";
       const deterministic = /Invalid|Unknown|Missing|challenge|signature|wallet|pool|transaction|payment amount|mint target|did not succeed|already used/i.test(message);
-      const status = Number(error?.status) || (message.includes("rate limit") ? 429 : error instanceof SyntaxError ? 400 : deterministic ? 422 : 500);
+      const structuredStatus = Number(error?.status);
+      const status = Number.isInteger(structuredStatus) && structuredStatus >= 400 && structuredStatus <= 599
+        ? structuredStatus
+        : error?.transient === true ? 503
+          : message.includes("rate limit") ? 429
+            : error instanceof SyntaxError ? 400 : deterministic ? 422 : 500;
       return response({ error: message }, status);
     }
   };

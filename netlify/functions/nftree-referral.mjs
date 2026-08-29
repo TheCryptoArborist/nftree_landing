@@ -1,7 +1,7 @@
 import { getStore } from "@netlify/blobs";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
 import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
-import { activeChallengeKey, authenticateReferralClaim, cleanupExpiredChallenges, consumeReferralClaim, createReferralChallenge, enforceChallengeRateLimit, findActiveChallenge, normalizeWalletAddress, recordOnce, validateClaimTransactionWindow, verifiedReferralRecord } from "./referral-core.mjs";
+import { activeChallengeKey, authenticateReferralClaim, cleanupExpiredChallenges, createReferralChallenge, enforceChallengeRateLimit, finalizeReferralClaim, findActiveChallenge, normalizeWalletAddress, recordOnce, reserveReferralClaim, validateClaimTransactionWindow, verifiedReferralRecord } from "./referral-core.mjs";
 
 const RPC_URL = process.env.SUI_JSON_RPC_URL || "https://fullnode.mainnet.sui.io:443";
 const suiClient = new SuiJsonRpcClient({ url: RPC_URL });
@@ -77,8 +77,9 @@ export function createReferralHandler({
       const tx = await fetchTransactionImpl(String(input.digest));
       const record = verifiedReferralRecord(input, tx);
       validateClaimTransactionWindow(authentication, Date.parse(record.transactionTimestamp));
+      await reserveReferralClaim(input, authentication, store);
       const result = await recordOnce(store, record);
-      await consumeReferralClaim(input, authentication, store);
+      await finalizeReferralClaim(input, authentication, store);
       return response({ recorded: true, duplicate: result.duplicate, transactionDigest: record.transactionDigest });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Referral attribution failed.";

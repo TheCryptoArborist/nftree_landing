@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readStoredReferral, REFERRAL_MAX_AGE_MS } from "../public/referral-storage.js";
-import { cleanupExpiredChallenges, createReferralChallenge, enforceChallengeRateLimit, findActiveChallenge, normalizeWalletAddress, PACKAGE_ID, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "../netlify/functions/referral-core.mjs";
+import { CHALLENGE_RETENTION_MS, cleanupExpiredChallenges, createReferralChallenge, enforceChallengeRateLimit, findActiveChallenge, normalizeWalletAddress, PACKAGE_ID, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "../netlify/functions/referral-core.mjs";
 import { createReferralHandler, personalMessageVerifier } from "../netlify/functions/nftree-referral.mjs";
 import { clearPreparedReferralClaim, prepareReferralClaim } from "../public/referral-preflight.js";
 import { MAX_REFERRAL_RETRIES, nextPendingClaim, ReferralRequestError, shouldRetryReferral } from "../public/referral-retry.js";
@@ -74,14 +74,29 @@ test("challenge issuance is rate limited by wallet and request source", async ()
 
 test("expired challenges and rate buckets are cleaned up", async () => {
   const values = new Map([
-    ["challenges/old", { expiresAt: new Date(999).toISOString() }],
-    ["challenges/current", { expiresAt: new Date(2001).toISOString() }],
+    ["challenges/old", { retainUntil: new Date(999).toISOString() }],
+    ["challenges/current", { retainUntil: new Date(2001).toISOString() }],
     ["rate/0/source", { expiresAt: 999 }],
   ]);
   await cleanupExpiredChallenges(mapStore(values), 2000);
   assert.equal(values.has("challenges/old"), false);
   assert.equal(values.has("rate/0/source"), false);
   assert.equal(values.has("challenges/current"), true);
+});
+
+test("expired authorization proof is retained for delayed claims, then cleaned up", async () => {
+  const now = 1_700_000_000_000;
+  const challenge = createReferralChallenge({ id: "retained", walletAddress: WALLET, referralCode: "mischief-finance" }, now);
+  const values = new Map([[`challenges/${challenge.id}`, challenge]]);
+  await cleanupExpiredChallenges(mapStore(values), Date.parse(challenge.expiresAt) + 1);
+  assert.equal(values.has(`challenges/${challenge.id}`), true);
+  await verifyReferralClaim({ ...input, challengeId: challenge.id, signature: "sig" }, mapStore(values), async () => {}, now + 1000);
+  assert.equal(values.has(`claims/${challenge.id}`), true);
+
+  const unclaimed = createReferralChallenge({ id: "eventual", walletAddress: WALLET, referralCode: "mischief-finance" }, now);
+  values.set(`challenges/${unclaimed.id}`, unclaimed);
+  await cleanupExpiredChallenges(mapStore(values), now + CHALLENGE_RETENTION_MS + 1);
+  assert.equal(values.has(`challenges/${unclaimed.id}`), false);
 });
 
 test("personal-message verification supplies address and Sui client", async () => {
@@ -124,6 +139,28 @@ test("unknown server-side referral code is rejected", () => {
 test("wrong wallet and ineligible pool are rejected", () => {
   assert.throws(() => verifiedReferralRecord({ ...input, walletAddress: `0x${"1".repeat(64)}` }, validTransaction()), /sender/);
   assert.throws(() => verifiedReferralRecord({ ...input, poolId: "0xbad" }, validTransaction()), /Ineligible/);
+});
+
+test("pool and payment are resolved from one exact purchase command", () => {
+  const otherPool = "0x" + "9".repeat(64);
+  const tx = validTransaction({}, "900");
+  const programmable = tx.transaction.data.transaction;
+  programmable.inputs.push(
+    { Object: { SharedObject: { objectId: otherPool } } },
+    { Pure: { value: "100" } },
+  );
+  programmable.transactions = [
+    { SplitCoins: [{ GasCoin: true }, [{ Input: 3 }]] },
+    { MoveCall: { package: PACKAGE_ID, module: "collection", function: "purchase", arguments: [{ Input: 2 }, { NestedResult: [0, 0] }] } },
+    { SplitCoins: [{ GasCoin: true }, [{ Input: 1 }]] },
+    { MoveCall: { package: PACKAGE_ID, module: "collection", function: "purchase", arguments: [{ Input: 0 }, { NestedResult: [2, 0] }] } },
+  ];
+  assert.equal(verifiedReferralRecord(input, tx).mintPriceMist, "900");
+
+  programmable.transactions.push(
+    { MoveCall: { package: PACKAGE_ID, module: "collection", function: "purchase", arguments: [{ Input: 0 }, { NestedResult: [0, 0] }] } },
+  );
+  assert.throws(() => verifiedReferralRecord(input, tx), /ambiguous/);
 });
 
 test("valid successful sales-pool mint is recorded once", async () => {
@@ -297,6 +334,38 @@ test("record endpoint authenticates before making any Sui RPC call", async () =>
   });
   assert.equal((await accepted(new Request("https://example.test/api", { method: "POST", body: JSON.stringify(body) }))).status, 200);
   assert.deepEqual(order, ["signature", "rpc"]);
+});
+
+test("one signed challenge atomically reserves exactly one concurrent digest", async () => {
+  const now = Date.now();
+  const challenge = createReferralChallenge({ id: "race", walletAddress: WALLET, referralCode: "mischief-finance" }, now);
+  const values = new Map([[`challenges/${challenge.id}`, challenge]]);
+  const store = mapStore(values);
+  let arrivals = 0;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const handler = createReferralHandler({
+    getReferralStore: () => store,
+    context: () => "production",
+    verifySignature: async () => {},
+    fetchTransactionImpl: async () => {
+      arrivals += 1;
+      if (arrivals === 2) release();
+      await gate;
+      return validTransaction({ timestampMs: now + 1000 });
+    },
+  });
+  const submit = (digest) => handler(new Request("https://example.test/api", {
+    method: "POST",
+    body: JSON.stringify({ ...input, digest, challengeId: challenge.id, signature: "sig" }),
+  }));
+  const responses = await Promise.all([submit("race-a"), submit("race-b")]);
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 422]);
+  const reservation = values.get(`claims/${challenge.id}`);
+  assert.ok(["race-a", "race-b"].includes(reservation.digest));
+  const due = [...values.entries()].filter(([key, value]) => key.startsWith("transactions/") && value.paymentStatus === "due");
+  assert.equal(due.length, 1);
+  assert.equal(due[0][1].transactionDigest, reservation.digest);
 });
 
 test("retry classification keeps transient failures, removes permanent failures, and is bounded", () => {

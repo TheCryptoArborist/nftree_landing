@@ -7,6 +7,9 @@ export const ELIGIBLE_POOLS = new Set([
 export const PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5";
 const normalize = (value) => String(value || "").toLowerCase();
 export const CHALLENGE_MAX_AGE_MS = 10 * 60 * 1000;
+// Pending claims are retried for a bounded period in the browser. Retain the
+// signed proof substantially longer so an offline tab can safely resume.
+export const CHALLENGE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 export function referralChallengeMessage(challenge) {
@@ -34,6 +37,7 @@ export function createReferralChallenge({ id, walletAddress, referralCode }, now
   const challenge = {
     id: String(id), walletAddress: wallet, referralCode,
     issuedAt: new Date(now).toISOString(), expiresAt: new Date(now + CHALLENGE_MAX_AGE_MS).toISOString(),
+    retainUntil: new Date(now + CHALLENGE_RETENTION_MS).toISOString(),
   };
   return { ...challenge, message: referralChallengeMessage(challenge) };
 }
@@ -73,23 +77,51 @@ export function validateClaimTransactionWindow(authentication, transactionTimest
   }
 }
 
-export async function consumeReferralClaim(input, authentication, store) {
-  if (authentication.existing) return;
-  const claimKey = `claims/${input.challengeId}`;
-  try { await store.setJSON(claimKey, { digest: input.digest, walletAddress: authentication.challenge.walletAddress }, { onlyIfNew: true }); }
-  catch (error) {
-    const raced = await store.get(claimKey, { type: "json" });
-    if (!raced || raced.digest !== input.digest) throw error;
+export async function reserveReferralClaim(input, authentication, store, now = Date.now()) {
+  if (authentication.existing) return { reservation: authentication.existing, duplicate: true };
+  const reservation = {
+    challengeId: input.challengeId,
+    digest: input.digest,
+    walletAddress: authentication.challenge.walletAddress,
+    referralCode: authentication.challenge.referralCode,
+    status: "reserved",
+    createdAt: new Date(now).toISOString(),
+    retainUntil: authentication.challenge.retainUntil,
+  };
+  const key = `claims/${input.challengeId}`;
+  try {
+    await store.setJSON(key, reservation, { onlyIfNew: true });
+    return { reservation, duplicate: false };
+  } catch (error) {
+    const existing = await store.get(key, { type: "json" });
+    if (existing?.digest === input.digest && existing.walletAddress === reservation.walletAddress) {
+      return { reservation: existing, duplicate: true };
+    }
+    if (existing) throw new Error("Referral challenge was already reserved for another mint.");
+    throw error;
   }
-  try { await store.delete(`challenges/${input.challengeId}`); } catch { /* Cleanup is ancillary. */ }
-  try { await store.delete(`active/${authentication.challenge.activeKey}`); } catch { /* Cleanup is ancillary. */ }
 }
 
-// Backwards-compatible composition used by focused unit tests.
+export async function finalizeReferralClaim(input, authentication, store) {
+  const key = `claims/${input.challengeId}`;
+  const reservation = await store.get(key, { type: "json" });
+  if (!reservation || reservation.digest !== input.digest || reservation.walletAddress !== normalizeWalletAddress(input.walletAddress)) {
+    throw new Error("Referral claim reservation does not match this mint.");
+  }
+  try { await store.setJSON(key, { ...reservation, status: "finalized", finalizedAt: new Date().toISOString() }); } catch { /* Reservation remains retryable. */ }
+  try { await store.delete(`challenges/${input.challengeId}`); } catch { /* Cleanup is ancillary. */ }
+  if (authentication.challenge?.activeKey) {
+    try { await store.delete(`active/${authentication.challenge.activeKey}`); } catch { /* Cleanup is ancillary. */ }
+  }
+}
+
+// Composition used by focused unit tests; production follows the same
+// authenticate -> verify transaction window -> reserve -> finalize ordering.
 export async function verifyReferralClaim(input, store, verifySignature, transactionTimestampMs) {
   const authentication = await authenticateReferralClaim(input, store, verifySignature);
   validateClaimTransactionWindow(authentication, transactionTimestampMs);
-  await consumeReferralClaim(input, authentication, store);
+  await reserveReferralClaim(input, authentication, store, transactionTimestampMs);
+  await finalizeReferralClaim(input, authentication, store);
 }
 
 export async function cleanupExpiredChallenges(store, now = Date.now()) {
@@ -97,7 +129,7 @@ export async function cleanupExpiredChallenges(store, now = Date.now()) {
     const result = await store.list({ prefix });
     for (const blob of result.blobs) {
       const value = await store.get(blob.key, { type: "json" });
-      const expiresAt = prefix === "challenges/" ? Date.parse(value?.expiresAt) : Number(value?.expiresAt);
+      const expiresAt = prefix === "challenges/" ? Date.parse(value?.retainUntil) : Number(value?.expiresAt);
       if (!value || !Number.isFinite(expiresAt) || expiresAt < now) await store.delete(blob.key);
     }
   }
@@ -143,12 +175,6 @@ function isPurchaseCommand(command) {
   );
 }
 
-function containsObjectId(value, objectId) {
-  if (typeof value === "string") return normalize(value) === objectId;
-  if (!value || typeof value !== "object") return false;
-  return Object.values(value).some((item) => containsObjectId(item, objectId));
-}
-
 function commandKind(command, kind) {
   return command?.[kind] ?? command?.[kind[0].toLowerCase() + kind.slice(1)];
 }
@@ -175,9 +201,12 @@ function pureInputValue(input) {
   return null;
 }
 
-function verifiedPurchasePaymentMist(data, commands) {
-  const purchase = commands.find((command) => isPurchaseCommand(command));
-  const call = purchase?.MoveCall || purchase?.moveCall || purchase;
+function objectInputId(input) {
+  const object = input?.Object ?? input?.object ?? input;
+  return normalize(object?.SharedObject?.objectId ?? object?.sharedObject?.objectId ?? object?.ImmOrOwnedObject?.objectId ?? object?.objectId);
+}
+
+function purchasePaymentMist(data, commands, call) {
   const reference = resultReference(call?.arguments?.[1]);
   // splitCoins returns one coin for each amount; purchase must use its first (and only) output.
   const split = !reference || reference.outputIndex !== 0 ? null : commandKind(commands[reference.commandIndex], "SplitCoins");
@@ -201,12 +230,19 @@ export function verifiedReferralRecord(input, tx) {
 
   const { data, commands } = transactionParts(tx);
   if (normalize(data.sender) !== walletAddress) throw new Error("Transaction sender does not match the minting wallet.");
-  if (!commands.some(isPurchaseCommand)) throw new Error("Transaction did not call the NFTree sales-pool mint target.");
-  if (!containsObjectId(data.transaction, poolId)) throw new Error("Transaction did not use the eligible sales pool.");
+  const inputs = data.transaction?.inputs || [];
+  const candidates = commands.filter(isPurchaseCommand).flatMap((command) => {
+    const call = command?.MoveCall || command?.moveCall || command;
+    const poolIndex = inputIndex(call?.arguments?.[0]);
+    const commandPool = poolIndex === null ? "" : objectInputId(inputs[poolIndex]);
+    return commandPool === poolId && ELIGIBLE_POOLS.has(commandPool) ? [{ call, poolId: commandPool }] : [];
+  });
+  if (candidates.length === 0) throw new Error("Transaction did not contain a qualifying NFTree purchase.");
+  if (candidates.length !== 1) throw new Error("Transaction contains ambiguous qualifying NFTree purchases.");
 
   const timestampMs = Number(tx.timestampMs);
   if (!Number.isFinite(timestampMs) || timestampMs <= 0) throw new Error("Transaction timestamp is unavailable.");
-  const mintPriceMist = verifiedPurchasePaymentMist(data, commands);
+  const mintPriceMist = purchasePaymentMist(data, commands, candidates[0].call);
   return {
     transactionDigest: String(input.digest),
     walletAddress,

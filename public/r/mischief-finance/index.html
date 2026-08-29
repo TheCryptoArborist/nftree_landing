@@ -10,7 +10,12 @@
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body class="ambassador-page" data-referral-code="mischief-finance" data-referral-name="Mischief Finance">
+  <body
+    class="ambassador-page"
+    data-referral-code="mischief-finance"
+    data-referral-name="Mischief Finance"
+    data-referral-commission-bps="500"
+  >
     <a class="skip-link" href="#ambassador-path">Skip to ambassador mint path</a>
     <header class="site-header" aria-label="NFTree ambassador header">
       <a class="brand" href="https://www.tree-token.xyz" aria-label="TREE token home">
@@ -52,7 +57,8 @@
             <a class="button button-secondary" href="https://tree-token.xyz/play/" rel="noreferrer" target="_blank">Open TREE Arcade</a>
           </div>
           <p class="referral-disclosure">
-            This page saves the referral source in this browser. Mint transactions still happen only through the normal
+            This page saves the referral source in this browser. Eligible mints may credit the ambassador at 5%,
+            which is 1.25 SUI per confirmed 25 SUI mint. Mint transactions still happen only through the normal
             NFTree mint flow after the buyer connects a Sui wallet and approves the transaction.
           </p>
         </div>
@@ -132,6 +138,10 @@
             <span>Impact</span>
             <strong>Tree Fund</strong>
           </div>
+          <div>
+            <span>Ambassador credit</span>
+            <strong>5%</strong>
+          </div>
         </div>
       </section>
 
@@ -177,7 +187,15 @@
 
     <script>
       (() => {
-        const referral = { code: "mischief-finance", name: "Mischief Finance" };
+        const referral = {
+          code: "mischief-finance",
+          name: "Mischief Finance",
+          commission: {
+            bps: 500,
+            label: "5%",
+            perMintSui: "1.25",
+          },
+        };
         const payload = {
           ...referral,
           sourcePath: window.location.pathname,

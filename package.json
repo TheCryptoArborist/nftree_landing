@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build --config vite.wallet.config.mjs",
     "build:wallet": "vite build --config vite.wallet.config.mjs",
-    "lint": "node --check public/app.js && node --check netlify/functions/nftree-listings.mjs && node --check netlify/functions/nftree-sale-pools.mjs"
+    "lint": "node --check public/app.js && node --check public/r/mischief-finance/ambassador.js && node --check netlify/functions/nftree-listings.mjs && node --check netlify/functions/nftree-sale-pools.mjs"
   },
   "dependencies": {
     "@mysten/sui": "2.26.2",

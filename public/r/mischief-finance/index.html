@@ -51,8 +51,17 @@
             <p><strong>Open shop</strong> / <strong>Connect wallet</strong> / <strong>Mint from the 25 SUI sales pool</strong></p>
           </div>
           <div class="ambassador-actions" aria-label="NFTree actions">
+            <button class="button button-secondary ambassador-wallet-button" id="ambassadorWalletConnectButton" type="button">
+              Connect Wallet
+            </button>
             <a class="button button-primary" href="/mint?ref=mischief-finance#mint" data-referral-link>Mint an NFTree</a>
+            <button class="button button-secondary ambassador-wallet-disconnect" id="ambassadorWalletDisconnectButton" type="button" hidden>
+              Disconnect
+            </button>
           </div>
+          <p class="ambassador-wallet-status" id="ambassadorWalletStatus" aria-live="polite">
+            Connect a Sui wallet here, then continue to the NFTree mint page.
+          </p>
         </div>
 
         <div class="ambassador-hero-media" aria-label="NFTree preview">
@@ -82,9 +91,6 @@
             NFTrees are Sui NFTs tied to TREE ecosystem access, holder utility, community rewards paths,
             Tree Fund impact, and game utility inside TREE Arcade.
           </p>
-          <div class="ambassador-actions">
-            <a class="button button-primary" href="/mint?ref=mischief-finance#mint" data-referral-link>Mint an NFTree</a>
-          </div>
         </div>
         <div class="ambassador-metric-panel" aria-label="NFTree highlights">
           <div>
@@ -142,31 +148,27 @@
       </div>
     </footer>
 
-    <script>
-      (() => {
-        const referral = {
-          code: "mischief-finance",
-          name: "Mischief Finance",
-          scope: "sales-pool-mints",
-        };
-        const payload = {
-          ...referral,
-          sourcePath: window.location.pathname,
-          savedAt: new Date().toISOString(),
-        };
+    <div class="wallet-modal ambassador-wallet-modal" id="ambassadorWalletModal" hidden>
+      <div class="wallet-modal-backdrop" data-ambassador-wallet-close></div>
+      <section class="wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="ambassadorWalletTitle" tabindex="-1">
+        <button class="icon-button wallet-modal-close" type="button" data-ambassador-wallet-close aria-label="Close wallet picker">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M5 5l10 10" />
+            <path d="M15 5 5 15" />
+          </svg>
+        </button>
+        <div class="wallet-dialog-head">
+          <span>Wallet</span>
+          <h2 id="ambassadorWalletTitle">Choose a Sui wallet</h2>
+        </div>
+        <div class="wallet-modal-status" id="ambassadorWalletModalStatus" aria-live="polite">
+          Detecting installed Sui wallets.
+        </div>
+        <div class="wallet-modal-options" id="ambassadorWalletModalOptions" role="list"></div>
+      </section>
+    </div>
 
-        try {
-          window.localStorage.setItem("nftreeReferral", JSON.stringify(payload));
-        } catch {}
-
-        document.cookie = `nftreeReferral=${encodeURIComponent(referral.code)}; path=/; max-age=2592000; SameSite=Lax`;
-
-        document.querySelectorAll("[data-referral-link]").forEach((link) => {
-          const url = new URL(link.getAttribute("href"), window.location.origin);
-          url.searchParams.set("ref", referral.code);
-          link.href = `${url.pathname}${url.search}${url.hash}`;
-        });
-      })();
-    </script>
+    <script src="/assets/nftree-wallet-mint.js"></script>
+    <script src="/r/mischief-finance/ambassador.js"></script>
   </body>
 </html>

@@ -8,6 +8,7 @@ const MINT_PRICE_MIST = "25000000000";
 const GAS_WARNING_BUFFER_MIST = "100000000";
 const DEBUG_MINT = new URLSearchParams(window.location.search).get("debugMint") === "1";
 const REFERRAL_STORAGE_KEY = "nftreeReferral";
+const CONNECTED_WALLET_STORAGE_KEY = "nftreeConnectedWallet";
 const REFERRAL_NAMES = Object.freeze({
   "mischief-finance": "Mischief Finance",
 });
@@ -278,6 +279,39 @@ function saveReferral(code, name) {
   } catch {}
 
   document.cookie = `nftreeReferral=${encodeURIComponent(code)}; path=/; max-age=2592000; SameSite=Lax`;
+}
+
+function readStoredWalletConnection() {
+  try {
+    const payload = JSON.parse(window.localStorage.getItem(CONNECTED_WALLET_STORAGE_KEY) || "{}");
+    const walletName = String(payload.walletName || "");
+    const accountAddress = String(payload.accountAddress || "");
+    if (!walletName || !accountAddress) return null;
+    return { accountAddress, walletName };
+  } catch {
+    return null;
+  }
+}
+
+function saveWalletConnection(walletName, accountAddress) {
+  if (!walletName || !accountAddress) return;
+  try {
+    window.localStorage.setItem(
+      CONNECTED_WALLET_STORAGE_KEY,
+      JSON.stringify({
+        accountAddress,
+        connectedAt: new Date().toISOString(),
+        sourcePath: window.location.pathname,
+        walletName,
+      }),
+    );
+  } catch {}
+}
+
+function clearStoredWalletConnection() {
+  try {
+    window.localStorage.removeItem(CONNECTED_WALLET_STORAGE_KEY);
+  } catch {}
 }
 
 function renderReferralState() {
@@ -1051,10 +1085,39 @@ function updateWalletButton() {
   elements.walletConnectButton.disabled = false;
 }
 
+function hydrateStoredWalletConnection() {
+  if (state.connectedAddress) return true;
+
+  const stored = readStoredWalletConnection();
+  const walletModule = window.NFTreeWalletMint;
+  if (!stored || typeof walletModule?.getConnectedWalletState !== "function") return false;
+
+  const moduleState = walletModule.getConnectedWalletState({
+    accountAddress: stored.accountAddress,
+    walletName: stored.walletName,
+  });
+  if (!moduleState.accountAddress || !moduleState.walletExists || !moduleState.accountExists) return false;
+
+  state.connectedWallet = moduleState.walletName || stored.walletName;
+  state.connectedAddress = moduleState.accountAddress;
+  state.selectedWallet = state.connectedWallet;
+  subscribeToConnectedWallet();
+  refreshConnectedBalance();
+  setWalletStatus(`Connected to ${state.connectedWallet}: ${shortenAddress(state.connectedAddress)}. Press Mint NFTree to submit a transaction.`, "ready");
+  elements.mintContractStatus.textContent = `Connected: ${shortenAddress(state.connectedAddress)}. Minting is ready but no transaction has been submitted.`;
+  debugMint("Restored connected wallet from saved hint", {
+    walletName: state.connectedWallet,
+    account: state.connectedAddress,
+    moduleState,
+  });
+  return true;
+}
+
 function setWallets(wallets) {
   state.wallets = Array.isArray(wallets) ? orderedWallets(wallets) : [];
   renderCompactWalletOptions();
   renderWalletModalOptions();
+  hydrateStoredWalletConnection();
 
   if (!state.connectedAddress && !state.wallets.length) {
     setWalletStatus("No Sui wallet detected. Install or unlock a Sui wallet, then try again.", "error");
@@ -1189,6 +1252,7 @@ function subscribeToConnectedWallet() {
     (event) => {
       if (!event?.connected) {
         clearConnectedWalletState();
+        clearStoredWalletConnection();
         renderWalletState();
         updateWalletButton();
         updateMintButtons();
@@ -1202,6 +1266,7 @@ function subscribeToConnectedWallet() {
       state.connectedWallet = event.walletName || state.connectedWallet;
       state.connectedAddress = event.account || state.connectedAddress;
       state.selectedWallet = state.connectedWallet;
+      saveWalletConnection(state.connectedWallet, state.connectedAddress);
       renderWalletState();
       refreshConnectedBalance();
       updateWalletButton();
@@ -1238,6 +1303,7 @@ async function connectWallet(walletName) {
     state.connectedWallet = result.walletName;
     state.connectedAddress = result.account;
     state.selectedWallet = result.walletName;
+    saveWalletConnection(result.walletName, result.account);
     subscribeToConnectedWallet();
     renderWalletState();
     refreshConnectedBalance();
@@ -1286,6 +1352,7 @@ async function disconnectWallet() {
     console.warn("NFTree wallet disconnect failed; clearing local wallet state.", error);
   } finally {
     clearConnectedWalletState();
+    clearStoredWalletConnection();
     state.isDisconnecting = false;
     closeWalletPicker();
     renderWalletState();

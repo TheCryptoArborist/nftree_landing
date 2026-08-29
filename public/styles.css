@@ -21,6 +21,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -1689,8 +1693,35 @@ h1 {
 .ambassador-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
   margin-top: 24px;
+}
+
+.ambassador-wallet-button,
+.ambassador-wallet-disconnect {
+  min-height: 42px;
+}
+
+.ambassador-wallet-status {
+  max-width: 720px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.ambassador-wallet-status.is-ready {
+  color: var(--cyan);
+}
+
+.ambassador-wallet-status.is-connecting {
+  color: var(--gold);
+}
+
+.ambassador-wallet-status.is-error {
+  color: #ffb0a8;
 }
 
 .ambassador-hero-media {

@@ -14,7 +14,6 @@
     class="ambassador-page"
     data-referral-code="mischief-finance"
     data-referral-name="Mischief Finance"
-    data-referral-commission-bps="500"
     data-referral-scope="sales-pool-mints"
   >
     <a class="skip-link" href="#ambassador-path">Skip to ambassador mint path</a>
@@ -54,11 +53,6 @@
             <a class="button button-primary" href="/mint?ref=mischief-finance#mint" data-referral-link>Mint an NFTree</a>
             <a class="button button-secondary" href="https://tree-token.xyz/play/" rel="noreferrer" target="_blank">Open TREE Arcade</a>
           </div>
-          <p class="referral-disclosure">
-            This page saves the referral source in this browser. The 5% ambassador credit applies only to confirmed
-            NFTree sales-pool mints, which equals 1.25 SUI per confirmed 25 SUI mint. Secondary-market purchases
-            are outside this referral program.
-          </p>
         </div>
 
         <div class="ambassador-hero-media" aria-label="NFTree preview">
@@ -125,21 +119,12 @@
             <strong>25 SUI</strong>
           </div>
           <div>
-            <span>Network</span>
-            <strong>Sui</strong>
-          </div>
-          <div>
             <span>Utility</span>
             <strong>TREE Arcade</strong>
           </div>
           <div>
             <span>Impact</span>
             <strong>Tree Fund</strong>
-          </div>
-          <div>
-            <span>Sales-pool credit</span>
-            <strong>5%</strong>
-            <small>Primary mints only</small>
           </div>
         </div>
       </section>
@@ -189,13 +174,7 @@
         const referral = {
           code: "mischief-finance",
           name: "Mischief Finance",
-          commission: {
-            bps: 500,
-            label: "5%",
-            perMintSui: "1.25",
-            scope: "sales-pool-mints",
-            scopeLabel: "Confirmed sales-pool mints only",
-          },
+          scope: "sales-pool-mints",
         };
         const payload = {
           ...referral,

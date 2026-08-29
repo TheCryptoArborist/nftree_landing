@@ -11,15 +11,6 @@ const REFERRAL_STORAGE_KEY = "nftreeReferral";
 const REFERRAL_NAMES = Object.freeze({
   "mischief-finance": "Mischief Finance",
 });
-const REFERRAL_COMMISSIONS = Object.freeze({
-  "mischief-finance": {
-    bps: 500,
-    label: "5%",
-    perMintSui: "1.25",
-    scope: "sales-pool-mints",
-    scopeLabel: "Confirmed sales-pool mints only",
-  },
-});
 const MINT_MESSAGES = Object.freeze({
   walletDisconnected: "Wallet disconnected.",
   connectBeforeMinting: "Connect a Sui wallet before minting.",
@@ -120,7 +111,6 @@ const state = {
   isDisconnecting: false,
   isMinting: false,
   referralCode: "",
-  referralCommission: null,
   referralName: "",
   salePoolsLoaded: false,
   salePoolStatus: fallbackSalePoolStatus,
@@ -261,10 +251,6 @@ function referralNameFromCode(code) {
     .join(" ");
 }
 
-function referralCommissionFromCode(code) {
-  return REFERRAL_COMMISSIONS[code] || null;
-}
-
 function readStoredReferral() {
   try {
     const payload = JSON.parse(window.localStorage.getItem(REFERRAL_STORAGE_KEY) || "{}");
@@ -272,7 +258,6 @@ function readStoredReferral() {
     if (!code) return null;
     return {
       code,
-      commission: payload.commission || referralCommissionFromCode(code),
       name: String(payload.name || referralNameFromCode(code)),
     };
   } catch {
@@ -280,10 +265,9 @@ function readStoredReferral() {
   }
 }
 
-function saveReferral(code, name, commission = null) {
+function saveReferral(code, name) {
   const payload = {
     code,
-    commission,
     name,
     sourcePath: window.location.pathname,
     savedAt: new Date().toISOString(),
@@ -305,10 +289,7 @@ function renderReferralState() {
     return;
   }
 
-  const commissionText = state.referralCommission?.label
-    ? ` Sales-pool credit: ${state.referralCommission.label}.`
-    : "";
-  elements.referralSummary.textContent = `Referral source: ${state.referralName}.${commissionText}`;
+  elements.referralSummary.textContent = `Referral source: ${state.referralName}.`;
   elements.referralSummary.hidden = false;
 }
 
@@ -318,14 +299,12 @@ function captureReferralSource() {
   const stored = code ? null : readStoredReferral();
   const referralCode = code || stored?.code || "";
   const referralName = referralCode ? referralNameFromCode(referralCode) : "";
-  const referralCommission = referralCode ? referralCommissionFromCode(referralCode) || stored?.commission || null : null;
 
   state.referralCode = referralCode;
-  state.referralCommission = referralCommission;
   state.referralName = referralName;
 
   if (referralCode && code) {
-    saveReferral(referralCode, referralName, referralCommission);
+    saveReferral(referralCode, referralName);
   }
 
   renderReferralState();
@@ -1439,9 +1418,7 @@ async function mintConnectedWallet() {
     const successMessage =
       `Mint succeeded. Transaction digest: ${escapeHtml(digest)}. ` +
       `<a href="${escapeHtml(explorerUrl)}" target="_blank" rel="noreferrer">View on Sui Explorer</a>` +
-      (state.referralCode
-        ? ` Sales-pool referral source: ${escapeHtml(state.referralName)}${state.referralCommission?.label ? ` (${escapeHtml(state.referralCommission.label)} credit).` : "."}`
-        : "");
+      (state.referralCode ? ` Referral source: ${escapeHtml(state.referralName)}.` : "");
     await loadSalePools();
     refreshConnectedBalance();
     setWalletStatus(`Mint succeeded through ${result.walletName}.`, "ready");
@@ -1452,7 +1429,6 @@ async function mintConnectedWallet() {
       walletName: result.walletName,
       poolId: result.poolId || "",
       referralCode: state.referralCode,
-      referralCommission: state.referralCommission,
       referralName: state.referralName,
     });
   } catch (error) {

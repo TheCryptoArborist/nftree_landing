@@ -1852,16 +1852,6 @@ h1 {
   line-height: 1.08;
 }
 
-.ambassador-metric-panel small {
-  display: block;
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 850;
-  line-height: 1.25;
-  text-transform: uppercase;
-}
-
 .ambassador-arcade-promo {
   margin-top: 22px;
 }

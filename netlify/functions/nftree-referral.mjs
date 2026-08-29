@@ -1,7 +1,7 @@
 import { getStore } from "@netlify/blobs";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
 import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
-import { cleanupExpiredChallenges, createReferralChallenge, enforceChallengeRateLimit, normalizeWalletAddress, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "./referral-core.mjs";
+import { activeChallengeKey, authenticateReferralClaim, cleanupExpiredChallenges, consumeReferralClaim, createReferralChallenge, enforceChallengeRateLimit, findActiveChallenge, normalizeWalletAddress, recordOnce, validateClaimTransactionWindow, verifiedReferralRecord } from "./referral-core.mjs";
 
 const RPC_URL = process.env.SUI_JSON_RPC_URL || "https://fullnode.mainnet.sui.io:443";
 const suiClient = new SuiJsonRpcClient({ url: RPC_URL });
@@ -34,46 +34,61 @@ export async function fetchTransaction(digest, fetchImpl = fetch) {
       params: [digest, { showInput: true, showEffects: true }],
     }),
   });
-  if (!rpcResponse.ok) throw new Error("Sui transaction verification is unavailable.");
+  if (!rpcResponse.ok) throw Object.assign(new Error("Sui transaction verification is unavailable."), { status: 503 });
   const payload = await rpcResponse.json();
-  if (payload.error || !payload.result) throw new Error("Sui transaction was not found.");
+  if (payload.error || !payload.result) throw Object.assign(new Error("Sui transaction was not found."), { status: 425 });
   return payload.result;
 }
 
-export default async (request) => {
-  if (request.method !== "POST") return response({ error: "Method not allowed." }, 405);
-  try {
-    const input = await request.json();
-    const store = getStore("nftree-referrals");
-    if (input.action === "challenge") {
-      const walletAddress = normalizeWalletAddress(input.walletAddress);
-      await enforceChallengeRateLimit(store, walletAddress, await sourceHash(request));
-      await cleanupExpiredChallenges(store).catch(() => {});
-      const challenge = createReferralChallenge({
-        id: crypto.randomUUID(), walletAddress, referralCode: input.referralCode,
-      });
-      await store.setJSON(`challenges/${challenge.id}`, challenge, { onlyIfNew: true });
-      return response({ challengeId: challenge.id, message: challenge.message, expiresAt: challenge.expiresAt });
+export function createReferralHandler({
+  getReferralStore = () => getStore("nftree-referrals"),
+  fetchTransactionImpl = fetchTransaction,
+  verifySignature = personalMessageVerifier(),
+  context = () => process.env.CONTEXT,
+} = {}) {
+  return async (request) => {
+    if (request.method !== "POST") return response({ error: "Method not allowed." }, 405);
+    try {
+      const input = await request.json();
+      const store = getReferralStore();
+      if (input.action === "challenge") {
+        const walletAddress = normalizeWalletAddress(input.walletAddress);
+        const requestSource = await sourceHash(request);
+        await cleanupExpiredChallenges(store).catch(() => {});
+        const active = await findActiveChallenge(store, walletAddress, input.referralCode, requestSource);
+        if (active) return response({ challengeId: active.id, message: active.message, expiresAt: active.expiresAt, reused: true });
+        await enforceChallengeRateLimit(store, walletAddress, requestSource);
+        const activeKey = activeChallengeKey(walletAddress, input.referralCode, requestSource);
+        const challenge = createReferralChallenge({
+          id: crypto.randomUUID(), walletAddress, referralCode: input.referralCode,
+        });
+        challenge.activeKey = activeKey;
+        await store.setJSON(`challenges/${challenge.id}`, challenge, { onlyIfNew: true });
+        await store.setJSON(`active/${activeKey}`, { challengeId: challenge.id, expiresAt: Date.parse(challenge.expiresAt) });
+        return response({ challengeId: challenge.id, message: challenge.message, expiresAt: challenge.expiresAt });
+      }
+      if (context() !== "production") {
+        return response({ error: "Referral records are disabled outside the production deploy." }, 403);
+      }
+      if (!input.digest || !input.walletAddress || !input.poolId) return response({ error: "Missing mint details." }, 400);
+      if (!input.challengeId || !input.signature) return response({ error: "Missing signed referral claim." }, 400);
+      // Authenticate the wallet-bound claim before spending any upstream RPC capacity.
+      const authentication = await authenticateReferralClaim(input, store, verifySignature);
+      const tx = await fetchTransactionImpl(String(input.digest));
+      const record = verifiedReferralRecord(input, tx);
+      validateClaimTransactionWindow(authentication, Date.parse(record.transactionTimestamp));
+      const result = await recordOnce(store, record);
+      await consumeReferralClaim(input, authentication, store);
+      return response({ recorded: true, duplicate: result.duplicate, transactionDigest: record.transactionDigest });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Referral attribution failed.";
+      const deterministic = /Invalid|Unknown|Missing|challenge|signature|wallet|pool|transaction|payment amount|mint target|did not succeed|already used/i.test(message);
+      const status = Number(error?.status) || (message.includes("rate limit") ? 429 : error instanceof SyntaxError ? 400 : deterministic ? 422 : 500);
+      return response({ error: message }, status);
     }
-    if (process.env.CONTEXT !== "production") {
-      return response({ error: "Referral records are disabled outside the production deploy." }, 403);
-    }
-    if (!input.digest || !input.walletAddress || !input.poolId) return response({ error: "Missing mint details." }, 400);
-    if (!input.challengeId || !input.signature) return response({ error: "Missing signed referral claim." }, 400);
-    const tx = await fetchTransaction(String(input.digest));
-    const record = verifiedReferralRecord(input, tx);
-    await verifyReferralClaim(
-      input,
-      store,
-      personalMessageVerifier(),
-      Date.parse(record.transactionTimestamp),
-    );
-    const result = await recordOnce(store, record);
-    return response({ recorded: true, duplicate: result.duplicate, transactionDigest: record.transactionDigest });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Referral attribution failed.";
-    return response({ error: message }, message.includes("rate limit") ? 429 : 422);
-  }
-};
+  };
+}
+
+export default createReferralHandler();
 
 export const config = { method: ["POST"] };

@@ -38,7 +38,7 @@ export function createReferralChallenge({ id, walletAddress, referralCode }, now
   return { ...challenge, message: referralChallengeMessage(challenge) };
 }
 
-export async function verifyReferralClaim(input, store, verifySignature, transactionTimestampMs) {
+export async function authenticateReferralClaim(input, store, verifySignature) {
   const claimKey = `claims/${input.challengeId}`;
   const existing = await store.get(claimKey, { type: "json" });
   if (existing) {
@@ -46,7 +46,7 @@ export async function verifyReferralClaim(input, store, verifySignature, transac
     if (existing.walletAddress && existing.walletAddress !== normalizeWalletAddress(input.walletAddress)) {
       throw new Error("Referral challenge does not match this wallet.");
     }
-    return;
+    return { existing, challenge: null };
   }
   const challenge = await store.get(`challenges/${input.challengeId}`, { type: "json" });
   if (!challenge) throw new Error("Referral challenge was not found.");
@@ -58,26 +58,46 @@ export async function verifyReferralClaim(input, store, verifySignature, transac
   if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || expiresAt <= issuedAt) {
     throw new Error("Referral challenge window is invalid.");
   }
-  if (!Number.isFinite(transactionTimestampMs) || transactionTimestampMs < issuedAt || transactionTimestampMs > expiresAt) {
+  try {
+    await verifySignature(new TextEncoder().encode(referralChallengeMessage(challenge)), input.signature, challenge.walletAddress);
+  } catch {
+    throw new Error("Referral signature verification failed.");
+  }
+  return { existing: null, challenge, issuedAt, expiresAt };
+}
+
+export function validateClaimTransactionWindow(authentication, transactionTimestampMs) {
+  if (authentication.existing) return;
+  if (!Number.isFinite(transactionTimestampMs) || transactionTimestampMs < authentication.issuedAt || transactionTimestampMs > authentication.expiresAt) {
     throw new Error("Mint transaction is outside the referral challenge window.");
   }
-  await verifySignature(new TextEncoder().encode(referralChallengeMessage(challenge)), input.signature, challenge.walletAddress);
-  if (!existing) {
-    try { await store.setJSON(claimKey, { digest: input.digest, walletAddress: challenge.walletAddress }, { onlyIfNew: true }); }
-    catch (error) {
-      const raced = await store.get(claimKey, { type: "json" });
-      if (!raced || raced.digest !== input.digest) throw error;
-    }
+}
+
+export async function consumeReferralClaim(input, authentication, store) {
+  if (authentication.existing) return;
+  const claimKey = `claims/${input.challengeId}`;
+  try { await store.setJSON(claimKey, { digest: input.digest, walletAddress: authentication.challenge.walletAddress }, { onlyIfNew: true }); }
+  catch (error) {
+    const raced = await store.get(claimKey, { type: "json" });
+    if (!raced || raced.digest !== input.digest) throw error;
   }
-  try { await store.delete(`challenges/${challenge.id}`); } catch { /* Cleanup is ancillary. */ }
+  try { await store.delete(`challenges/${input.challengeId}`); } catch { /* Cleanup is ancillary. */ }
+  try { await store.delete(`active/${authentication.challenge.activeKey}`); } catch { /* Cleanup is ancillary. */ }
+}
+
+// Backwards-compatible composition used by focused unit tests.
+export async function verifyReferralClaim(input, store, verifySignature, transactionTimestampMs) {
+  const authentication = await authenticateReferralClaim(input, store, verifySignature);
+  validateClaimTransactionWindow(authentication, transactionTimestampMs);
+  await consumeReferralClaim(input, authentication, store);
 }
 
 export async function cleanupExpiredChallenges(store, now = Date.now()) {
-  for (const prefix of ["challenges/", "rate/"]) {
+  for (const prefix of ["challenges/", "rate/", "active/"]) {
     const result = await store.list({ prefix });
     for (const blob of result.blobs) {
       const value = await store.get(blob.key, { type: "json" });
-      const expiresAt = prefix === "rate/" ? Number(value?.expiresAt) : Date.parse(value?.expiresAt);
+      const expiresAt = prefix === "challenges/" ? Date.parse(value?.expiresAt) : Number(value?.expiresAt);
       if (!value || !Number.isFinite(expiresAt) || expiresAt < now) await store.delete(blob.key);
     }
   }
@@ -92,6 +112,20 @@ export async function enforceChallengeRateLimit(store, walletAddress, sourceHash
       throw new Error("Referral challenge rate limit exceeded.");
     }
   }
+}
+
+export function activeChallengeKey(walletAddress, referralCode, sourceHash) {
+  return `${normalizeWalletAddress(walletAddress)}/${referralCode}/${sourceHash}`;
+}
+
+export async function findActiveChallenge(store, walletAddress, referralCode, sourceHash, now = Date.now()) {
+  const key = activeChallengeKey(walletAddress, referralCode, sourceHash);
+  const pointer = await store.get(`active/${key}`, { type: "json" });
+  if (!pointer?.challengeId) return null;
+  const challenge = await store.get(`challenges/${pointer.challengeId}`, { type: "json" });
+  if (challenge && Date.parse(challenge.expiresAt) > now) return challenge;
+  try { await store.delete(`active/${key}`); } catch { /* Cleanup is ancillary. */ }
+  return null;
 }
 
 function transactionParts(tx) {

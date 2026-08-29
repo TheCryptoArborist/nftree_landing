@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readStoredReferral, REFERRAL_MAX_AGE_MS } from "../public/referral-storage.js";
-import { cleanupExpiredChallenges, createReferralChallenge, enforceChallengeRateLimit, normalizeWalletAddress, PACKAGE_ID, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "../netlify/functions/referral-core.mjs";
-import { personalMessageVerifier } from "../netlify/functions/nftree-referral.mjs";
-import { prepareReferralClaim } from "../public/referral-preflight.js";
+import { cleanupExpiredChallenges, createReferralChallenge, enforceChallengeRateLimit, findActiveChallenge, normalizeWalletAddress, PACKAGE_ID, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "../netlify/functions/referral-core.mjs";
+import { createReferralHandler, personalMessageVerifier } from "../netlify/functions/nftree-referral.mjs";
+import { clearPreparedReferralClaim, prepareReferralClaim } from "../public/referral-preflight.js";
+import { MAX_REFERRAL_RETRIES, nextPendingClaim, ReferralRequestError, shouldRetryReferral } from "../public/referral-retry.js";
 
 const POOL = "0x8cb91464eec7ada1af801a439207647d78de66bc0d4f124d6437091745a0163a";
 const WALLET = `0x${"0".repeat(61)}123`;
@@ -223,6 +224,92 @@ test("referral preflight failures and unsupported personal-message signing allow
     assert.equal(result.claim, null);
     assert.ok(result.error);
   }
+});
+
+test("cancelled mint retry reuses its signed, unconsumed challenge", async () => {
+  let requests = 0;
+  let signatures = 0;
+  const options = {
+    referralCode: "mischief-finance", walletAddress: WALLET,
+    requestChallenge: async () => { requests += 1; return { challengeId: "retry", message: "sign", expiresAt: new Date(Date.now() + 60_000).toISOString() }; },
+    signClaim: async () => { signatures += 1; return { signature: "sig" }; },
+  };
+  clearPreparedReferralClaim(options.referralCode, options.walletAddress);
+  const first = await prepareReferralClaim(options);
+  const retry = await prepareReferralClaim(options);
+  assert.deepEqual(retry.claim, first.claim);
+  assert.equal(retry.reused, true);
+  assert.equal(requests, 1);
+  assert.equal(signatures, 1);
+});
+
+test("challenge lookup reuses valid challenges and rejects expired or consumed ones", async () => {
+  const now = Date.now();
+  const activeKey = `${WALLET}/mischief-finance/source`;
+  const challenge = { ...createReferralChallenge({ id: "active", walletAddress: WALLET, referralCode: "mischief-finance" }, now), activeKey };
+  const values = new Map([
+    [`challenges/${challenge.id}`, challenge],
+    [`active/${activeKey}`, { challengeId: challenge.id, expiresAt: Date.parse(challenge.expiresAt) }],
+  ]);
+  const store = mapStore(values);
+  assert.equal((await findActiveChallenge(store, WALLET, "mischief-finance", "source", now)).id, challenge.id);
+  assert.equal(await findActiveChallenge(store, WALLET, "mischief-finance", "source", Date.parse(challenge.expiresAt) + 1), null);
+  values.set(`active/${activeKey}`, { challengeId: challenge.id, expiresAt: Date.parse(challenge.expiresAt) });
+  values.delete(`challenges/${challenge.id}`); // consumed challenges are absent.
+  assert.equal(await findActiveChallenge(store, WALLET, "mischief-finance", "source", now), null);
+});
+
+test("repeated challenge endpoint request returns the existing Blob", async () => {
+  const values = new Map();
+  const handler = createReferralHandler({ getReferralStore: () => mapStore(values) });
+  const request = () => new Request("https://example.test/api", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-forwarded-for": "192.0.2.1" },
+    body: JSON.stringify({ action: "challenge", walletAddress: WALLET, referralCode: "mischief-finance" }),
+  });
+  const first = await (await handler(request())).json();
+  const second = await (await handler(request())).json();
+  assert.equal(second.challengeId, first.challengeId);
+  assert.equal(second.reused, true);
+  assert.equal([...values.keys()].filter((key) => key.startsWith("challenges/")).length, 1);
+});
+
+test("record endpoint authenticates before making any Sui RPC call", async () => {
+  const now = Date.now();
+  const challenge = createReferralChallenge({ id: "auth-order", walletAddress: WALLET, referralCode: "mischief-finance" }, now);
+  const store = mapStore(new Map([[`challenges/${challenge.id}`, challenge]]));
+  const body = { ...input, challengeId: challenge.id, signature: "bad" };
+  let rpcCalls = 0;
+  const rejected = createReferralHandler({
+    getReferralStore: () => store, context: () => "production",
+    verifySignature: async () => { throw new Error("Signature mismatch."); },
+    fetchTransactionImpl: async () => { rpcCalls += 1; return validTransaction({ timestampMs: now + 1000 }); },
+  });
+  const badResponse = await rejected(new Request("https://example.test/api", { method: "POST", body: JSON.stringify(body) }));
+  assert.equal(badResponse.status, 422);
+  assert.equal(rpcCalls, 0);
+
+  const order = [];
+  const accepted = createReferralHandler({
+    getReferralStore: () => store, context: () => "production",
+    verifySignature: async () => { order.push("signature"); },
+    fetchTransactionImpl: async () => { order.push("rpc"); return validTransaction({ timestampMs: now + 1000 }); },
+  });
+  assert.equal((await accepted(new Request("https://example.test/api", { method: "POST", body: JSON.stringify(body) }))).status, 200);
+  assert.deepEqual(order, ["signature", "rpc"]);
+});
+
+test("retry classification keeps transient failures, removes permanent failures, and is bounded", () => {
+  assert.equal(shouldRetryReferral(new ReferralRequestError("server", 503)), true);
+  assert.equal(shouldRetryReferral(new ReferralRequestError("network")), true);
+  assert.equal(shouldRetryReferral(new ReferralRequestError("invalid", 422)), false);
+  let claim = { digest: "queued" };
+  for (let attempt = 0; attempt < MAX_REFERRAL_RETRIES; attempt += 1) {
+    const next = nextPendingClaim(claim, 1000);
+    assert.ok(next.nextAttemptAt > 1000);
+    claim = next;
+  }
+  assert.equal(nextPendingClaim(claim, 1000), null);
 });
 
 function challengeStore(challenge) {

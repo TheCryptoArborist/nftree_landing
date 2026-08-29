@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build --config vite.wallet.config.mjs",
     "build:wallet": "vite build --config vite.wallet.config.mjs",
-    "lint": "node --check public/app.js && node --check public/referral-storage.js && node --check public/r/mischief-finance/ambassador.js && node --check netlify/functions/*.mjs",
+    "lint": "node --check public/app.js && node --check public/referral-storage.js && node --check public/referral-preflight.js && node --check public/referral-retry.js && node --check public/r/mischief-finance/ambassador.js && node --check netlify/functions/*.mjs",
     "test": "node --test"
   },
   "dependencies": {

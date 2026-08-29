@@ -1,5 +1,6 @@
 import { ALLOWED_REFERRAL_CODE, readStoredReferral } from "/referral-storage.js";
-import { prepareReferralClaim } from "/referral-preflight.js";
+import { clearPreparedReferralClaim, prepareReferralClaim } from "/referral-preflight.js";
+import { nextPendingClaim, ReferralRequestError, shouldRetryReferral } from "/referral-retry.js";
 
 const API_URL = "/api/nftree-listings";
 const SALE_POOL_API_URL = "/api/nftree-sale-pools";
@@ -336,11 +337,18 @@ function captureReferralSource() {
 }
 
 async function referralRequest(body) {
-  const response = await fetch("/api/nftree-referral", {
-    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-  });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "Referral attribution was not saved.");
+  let response;
+  try {
+    response = await fetch("/api/nftree-referral", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new ReferralRequestError(error instanceof Error ? error.message : "Referral service is unavailable.");
+  }
+  let payload;
+  try { payload = await response.json(); }
+  catch { throw new ReferralRequestError("Referral service returned an invalid response.", response.status || 503); }
+  if (!response.ok) throw new ReferralRequestError(payload.error || "Referral attribution was not saved.", response.status);
   return payload;
 }
 
@@ -358,6 +366,7 @@ async function recordReferralWithRetry(claim, attempts = 3) {
     try { return await referralRequest(claim); }
     catch (error) {
       lastError = error;
+      if (!shouldRetryReferral(error)) throw error;
       if (attempt + 1 < attempts) await wait(500 * (2 ** attempt));
     }
   }
@@ -368,8 +377,16 @@ async function retryPendingReferralClaims() {
   const pending = pendingReferralClaims();
   if (!pending.length) return;
   const remaining = [];
+  const now = Date.now();
   for (const claim of pending) {
-    try { await recordReferralWithRetry(claim, 2); } catch { remaining.push(claim); }
+    if (Number(claim.nextAttemptAt || 0) > now) { remaining.push(claim); continue; }
+    try { await recordReferralWithRetry(claim, 1); }
+    catch (error) {
+      if (shouldRetryReferral(error)) {
+        const retried = nextPendingClaim(claim, now);
+        if (retried) remaining.push(retried);
+      }
+    }
   }
   savePendingReferralClaims(remaining);
 }
@@ -1533,19 +1550,24 @@ async function mintConnectedWallet() {
     if (referralPreflight.claim) {
       try {
         const claim = {
-            digest,
-            poolId: result.poolId || pool?.poolId || "",
-            ...referralPreflight.claim,
+          digest,
+          poolId: result.poolId || pool?.poolId || "",
+          ...referralPreflight.claim,
         };
         await recordReferralWithRetry(claim);
+        clearPreparedReferralClaim(state.referralCode, walletAddress);
         savePendingReferralClaims(pendingReferralClaims().filter((item) => item.digest !== digest));
         referralMessage = ` Referral recorded for ${escapeHtml(state.referralName)}.`;
       } catch (attributionError) {
         const claim = { digest, poolId: result.poolId || pool?.poolId || "", ...referralPreflight.claim };
         const pending = pendingReferralClaims().filter((item) => item.digest !== digest);
-        pending.push(claim);
+        const retryClaim = shouldRetryReferral(attributionError) ? nextPendingClaim(claim) : null;
+        if (retryClaim) pending.push(retryClaim);
         savePendingReferralClaims(pending);
-        referralMessage = ` The NFT mint succeeded, but referral attribution is pending and will be retried: ${escapeHtml(attributionError.message)}.`;
+        if (!retryClaim) clearPreparedReferralClaim(state.referralCode, walletAddress);
+        referralMessage = retryClaim
+          ? ` The NFT mint succeeded, but referral attribution is pending and will be retried: ${escapeHtml(attributionError.message)}.`
+          : ` The NFT mint succeeded, but referral attribution was rejected and will not be retried: ${escapeHtml(attributionError.message)}.`;
       }
     } else if (state.referralCode) {
       referralMessage = " This mint was completed without referral attribution because referral verification was unavailable or unsupported.";

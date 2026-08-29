@@ -16,6 +16,8 @@ const REFERRAL_COMMISSIONS = Object.freeze({
     bps: 500,
     label: "5%",
     perMintSui: "1.25",
+    scope: "sales-pool-mints",
+    scopeLabel: "Confirmed sales-pool mints only",
   },
 });
 const MINT_MESSAGES = Object.freeze({
@@ -304,7 +306,7 @@ function renderReferralState() {
   }
 
   const commissionText = state.referralCommission?.label
-    ? ` Ambassador credit: ${state.referralCommission.label}.`
+    ? ` Sales-pool credit: ${state.referralCommission.label}.`
     : "";
   elements.referralSummary.textContent = `Referral source: ${state.referralName}.${commissionText}`;
   elements.referralSummary.hidden = false;
@@ -1437,7 +1439,9 @@ async function mintConnectedWallet() {
     const successMessage =
       `Mint succeeded. Transaction digest: ${escapeHtml(digest)}. ` +
       `<a href="${escapeHtml(explorerUrl)}" target="_blank" rel="noreferrer">View on Sui Explorer</a>` +
-      (state.referralCode ? ` Referral source: ${escapeHtml(state.referralName)}.` : "");
+      (state.referralCode
+        ? ` Sales-pool referral source: ${escapeHtml(state.referralName)}${state.referralCommission?.label ? ` (${escapeHtml(state.referralCommission.label)} credit).` : "."}`
+        : "");
     await loadSalePools();
     refreshConnectedBalance();
     setWalletStatus(`Mint succeeded through ${result.walletName}.`, "ready");

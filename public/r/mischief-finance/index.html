@@ -6,7 +6,7 @@
     <title>Mint NFTrees with Mischief Finance | NFTree</title>
     <meta
       name="description"
-      content="Mint or browse NFTrees through a dedicated ambassador page. NFTrees are Sui NFTs connected to TREE ecosystem utility, TradePort listings, Tree Fund impact, and TREE Arcade games."
+      content="Mint NFTrees through the Mischief Finance ambassador path. NFTrees are Sui NFTs connected to TREE ecosystem utility, Tree Fund impact, and TREE Arcade games."
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
@@ -15,6 +15,7 @@
     data-referral-code="mischief-finance"
     data-referral-name="Mischief Finance"
     data-referral-commission-bps="500"
+    data-referral-scope="sales-pool-mints"
   >
     <a class="skip-link" href="#ambassador-path">Skip to ambassador mint path</a>
     <header class="site-header" aria-label="NFTree ambassador header">
@@ -31,7 +32,6 @@
         <a href="/mint?ref=mischief-finance#mint" data-referral-link>Mint</a>
         <a href="https://tree-token.xyz/play/" rel="noreferrer" target="_blank">TREE Arcade</a>
         <a href="https://treedrop.xyz" rel="noreferrer" target="_blank">Rewards</a>
-        <a href="https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items" rel="noreferrer" target="_blank">TradePort</a>
       </nav>
       <div class="header-tools">
         <a class="button button-secondary ambassador-header-cta" href="/" aria-label="Open NFTree.net homepage">NFTree.net</a>
@@ -48,18 +48,16 @@
           <p class="microcopy">Mischief Finance</p>
           <h1 id="ambassador-title">Mint your NFTree.</h1>
           <p class="ambassador-lede">
-            Use this page to mint from the NFTree sale pool, browse visible listings on TradePort,
-            and route into TREE ecosystem utility from one clean path.
+            Use this page to mint from the NFTree sale pool and route into TREE ecosystem utility from one clean path.
           </p>
           <div class="ambassador-actions" aria-label="NFTree actions">
             <a class="button button-primary" href="/mint?ref=mischief-finance#mint" data-referral-link>Mint an NFTree</a>
-            <a class="button button-secondary" href="/#listingGrid">Browse listings</a>
             <a class="button button-secondary" href="https://tree-token.xyz/play/" rel="noreferrer" target="_blank">Open TREE Arcade</a>
           </div>
           <p class="referral-disclosure">
-            This page saves the referral source in this browser. Eligible mints may credit the ambassador at 5%,
-            which is 1.25 SUI per confirmed 25 SUI mint. Mint transactions still happen only through the normal
-            NFTree mint flow after the buyer connects a Sui wallet and approves the transaction.
+            This page saves the referral source in this browser. The 5% ambassador credit applies only to confirmed
+            NFTree sales-pool mints, which equals 1.25 SUI per confirmed 25 SUI mint. Secondary-market purchases
+            are outside this referral program.
           </p>
         </div>
 
@@ -102,8 +100,8 @@
           </article>
           <article class="ambassador-card">
             <span>3</span>
-            <h3>Mint or browse</h3>
-            <p>Buyers can mint from the active sale pool for 25 SUI or inspect listed NFTrees on TradePort.</p>
+            <h3>Mint from the sale pool</h3>
+            <p>Buyers mint from the active NFTree sale pool for 25 SUI. Secondary-market purchases are outside this referral path.</p>
           </article>
         </div>
       </section>
@@ -118,7 +116,7 @@
           </p>
           <div class="ambassador-actions">
             <a class="button button-primary" href="/mint?ref=mischief-finance#mint" data-referral-link>Mint an NFTree</a>
-            <a class="button button-secondary" href="https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items" rel="noreferrer" target="_blank">View TradePort</a>
+            <a class="button button-secondary" href="https://tree-token.xyz/play/" rel="noreferrer" target="_blank">Open TREE Arcade</a>
           </div>
         </div>
         <div class="ambassador-metric-panel" aria-label="NFTree highlights">
@@ -139,8 +137,9 @@
             <strong>Tree Fund</strong>
           </div>
           <div>
-            <span>Ambassador credit</span>
+            <span>Sales-pool credit</span>
             <strong>5%</strong>
+            <small>Primary mints only</small>
           </div>
         </div>
       </section>
@@ -194,6 +193,8 @@
             bps: 500,
             label: "5%",
             perMintSui: "1.25",
+            scope: "sales-pool-mints",
+            scopeLabel: "Confirmed sales-pool mints only",
           },
         };
         const payload = {

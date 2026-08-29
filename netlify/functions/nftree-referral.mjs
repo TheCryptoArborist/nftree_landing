@@ -57,7 +57,7 @@ export function createReferralHandler({
         await cleanupExpiredChallenges(store).catch(() => {});
         const active = await findActiveChallenge(store, walletAddress, input.referralCode, requestSource);
         if (active) return response({ challengeId: active.id, message: active.message, expiresAt: active.expiresAt, reused: true });
-        await enforceChallengeRateLimit(store, walletAddress, requestSource);
+        await enforceChallengeRateLimit(store, requestSource);
         const activeKey = activeChallengeKey(walletAddress, input.referralCode, requestSource);
         const challenge = createReferralChallenge({
           id: crypto.randomUUID(), walletAddress, referralCode: input.referralCode,

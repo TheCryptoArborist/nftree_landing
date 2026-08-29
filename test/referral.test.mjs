@@ -64,12 +64,12 @@ test("challenge addresses are validated and normalized before persistence", () =
   }
 });
 
-test("challenge issuance is rate limited by wallet and request source", async () => {
+test("challenge issuance is rate limited by request source only", async () => {
   const values = new Map();
   const store = mapStore(values);
-  await enforceChallengeRateLimit(store, WALLET, "source", 1000);
-  await assert.rejects(enforceChallengeRateLimit(store, WALLET, "other-source", 1000), /rate limit/);
-  await assert.rejects(enforceChallengeRateLimit(store, `0x${"1".repeat(64)}`, "source", 1000), /rate limit/);
+  await enforceChallengeRateLimit(store, "source", 1000);
+  await assert.rejects(enforceChallengeRateLimit(store, "source", 1000), /rate limit/);
+  await enforceChallengeRateLimit(store, "other-source", 1000);
 });
 
 test("expired challenges and rate buckets are cleaned up", async () => {
@@ -141,26 +141,51 @@ test("wrong wallet and ineligible pool are rejected", () => {
   assert.throws(() => verifiedReferralRecord({ ...input, poolId: "0xbad" }, validTransaction()), /Ineligible/);
 });
 
-test("pool and payment are resolved from one exact purchase command", () => {
-  const otherPool = "0x" + "9".repeat(64);
-  const tx = validTransaction({}, "900");
-  const programmable = tx.transaction.data.transaction;
-  programmable.inputs.push(
-    { Object: { SharedObject: { objectId: otherPool } } },
-    { Pure: { value: "100" } },
-  );
-  programmable.transactions = [
-    { SplitCoins: [{ GasCoin: true }, [{ Input: 3 }]] },
-    { MoveCall: { package: PACKAGE_ID, module: "collection", function: "purchase", arguments: [{ Input: 2 }, { NestedResult: [0, 0] }] } },
-    { SplitCoins: [{ GasCoin: true }, [{ Input: 1 }]] },
-    { MoveCall: { package: PACKAGE_ID, module: "collection", function: "purchase", arguments: [{ Input: 0 }, { NestedResult: [2, 0] }] } },
-  ];
-  assert.equal(verifiedReferralRecord(input, tx).mintPriceMist, "900");
+test("canonical application-generated payment is accepted and determines commission", () => {
+  const record = verifiedReferralRecord(input, validTransaction({}, "100000000000"));
+  assert.equal(record.mintPriceMist, "100000000000");
+  assert.equal(record.commissionAmountDueMist, "5000000000");
+});
 
-  programmable.transactions.push(
-    { MoveCall: { package: PACKAGE_ID, module: "collection", function: "purchase", arguments: [{ Input: 0 }, { NestedResult: [0, 0] }] } },
-  );
+test("payment coin split after its verified split is rejected", () => {
+  const tx = validTransaction({}, "100000000000");
+  const programmable = tx.transaction.data.transaction;
+  programmable.inputs.push({ Pure: { value: "75000000000" } });
+  programmable.transactions.splice(1, 0, {
+    SplitCoins: [{ NestedResult: [0, 0] }, [{ Input: 2 }]],
+  });
+  programmable.transactions[2].MoveCall.arguments[1] = { NestedResult: [0, 0] };
+  assert.throws(() => verifiedReferralRecord(input, tx), /payment amount is unavailable/);
+});
+
+test("payment coin receiving a merge before purchase is rejected", () => {
+  const tx = validTransaction();
+  const programmable = tx.transaction.data.transaction;
+  programmable.transactions.splice(1, 0, {
+    MergeCoins: [{ NestedResult: [0, 0] }, [{ GasCoin: true }]],
+  });
+  programmable.transactions[2].MoveCall.arguments[1] = { NestedResult: [0, 0] };
+  assert.throws(() => verifiedReferralRecord(input, tx), /payment amount is unavailable/);
+});
+
+test("multiple NFTree purchase calls are rejected", () => {
+  const tx = validTransaction();
+  tx.transaction.data.transaction.transactions.push({
+    MoveCall: {
+      package: PACKAGE_ID,
+      module: "collection",
+      function: "purchase",
+      arguments: [{ Input: 0 }, { NestedResult: [0, 0] }],
+    },
+  });
   assert.throws(() => verifiedReferralRecord(input, tx), /ambiguous/);
+});
+
+test("purchase using a pool different from the claimed pool is rejected", () => {
+  const otherEligiblePool = "0xedd6b2d96968197bc121ad7bed064a43b5ad7d84cbb8b7c00d8fd78bea3e2e4d";
+  const tx = validTransaction();
+  tx.transaction.data.transaction.inputs[0].Object.SharedObject.objectId = otherEligiblePool;
+  assert.throws(() => verifiedReferralRecord(input, tx), /does not match the claimed pool/);
 });
 
 test("valid successful sales-pool mint is recorded once", async () => {
@@ -309,6 +334,31 @@ test("repeated challenge endpoint request returns the existing Blob", async () =
   assert.equal(second.challengeId, first.challengeId);
   assert.equal(second.reused, true);
   assert.equal([...values.keys()].filter((key) => key.startsWith("challenges/")).length, 1);
+});
+
+test("one abusive source cannot block another source from challenging the same wallet", async () => {
+  const values = new Map();
+  const handler = createReferralHandler({ getReferralStore: () => mapStore(values) });
+  const request = (walletAddress, trustedSource, forwardedSource = "caller-controlled") => new Request("https://example.test/api", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-nf-client-connection-ip": trustedSource,
+      "x-forwarded-for": forwardedSource,
+    },
+    body: JSON.stringify({ action: "challenge", walletAddress, referralCode: "mischief-finance" }),
+  });
+
+  const first = await handler(request(WALLET, "192.0.2.10", "198.51.100.1"));
+  assert.equal(first.status, 200);
+  const reused = await (await handler(request(WALLET, "192.0.2.10", "198.51.100.2"))).json();
+  assert.equal(reused.reused, true);
+
+  const abusiveRepeat = await handler(request(`0x${"1".repeat(64)}`, "192.0.2.10", "198.51.100.3"));
+  assert.equal(abusiveRepeat.status, 429);
+
+  const victimFromAnotherSource = await handler(request(WALLET, "192.0.2.11", "198.51.100.1"));
+  assert.equal(victimFromAnotherSource.status, 200);
 });
 
 test("record endpoint authenticates before making any Sui RPC call", async () => {

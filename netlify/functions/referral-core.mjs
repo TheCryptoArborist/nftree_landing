@@ -135,14 +135,12 @@ export async function cleanupExpiredChallenges(store, now = Date.now()) {
   }
 }
 
-export async function enforceChallengeRateLimit(store, walletAddress, sourceHash, now = Date.now()) {
+export async function enforceChallengeRateLimit(store, sourceHash, now = Date.now()) {
   const bucket = Math.floor(now / RATE_LIMIT_WINDOW_MS);
-  for (const identity of [`wallet-${walletAddress}`, `source-${sourceHash}`]) {
-    try {
-      await store.setJSON(`rate/${bucket}/${identity}`, { expiresAt: now + RATE_LIMIT_WINDOW_MS }, { onlyIfNew: true });
-    } catch {
-      throw new Error("Referral challenge rate limit exceeded.");
-    }
+  try {
+    await store.setJSON(`rate/${bucket}/source-${sourceHash}`, { expiresAt: now + RATE_LIMIT_WINDOW_MS }, { onlyIfNew: true });
+  } catch {
+    throw new Error("Referral challenge rate limit exceeded.");
   }
 }
 
@@ -206,15 +204,32 @@ function objectInputId(input) {
   return normalize(object?.SharedObject?.objectId ?? object?.sharedObject?.objectId ?? object?.ImmOrOwnedObject?.objectId ?? object?.objectId);
 }
 
-function purchasePaymentMist(data, commands, call) {
+function referencesResult(value, commandIndex, outputIndex) {
+  if (!value || typeof value !== "object") return false;
+  const reference = resultReference(value);
+  if (reference?.commandIndex === commandIndex && reference.outputIndex === outputIndex) return true;
+  return Object.values(value).some((child) => referencesResult(child, commandIndex, outputIndex));
+}
+
+function purchasePaymentMist(data, commands, purchaseIndex, call) {
   const reference = resultReference(call?.arguments?.[1]);
-  // splitCoins returns one coin for each amount; purchase must use its first (and only) output.
-  const split = !reference || reference.outputIndex !== 0 ? null : commandKind(commands[reference.commandIndex], "SplitCoins");
+  // The application builder creates one payment coin by splitting gas, then passes
+  // that exact output directly to purchase. Reject shapes whose value flow cannot
+  // be proven, including any intervening use of the payment coin.
+  if (!reference || reference.outputIndex !== 0 || reference.commandIndex >= purchaseIndex) {
+    throw new Error("Verified mint payment amount is unavailable.");
+  }
+  const split = commandKind(commands[reference.commandIndex], "SplitCoins");
+  const splitSource = Array.isArray(split) ? split[0] : split?.coin;
   const amountArgument = Array.isArray(split) ? split[1]?.[0] : split?.amounts?.[0];
   const amountCount = Array.isArray(split) ? split[1]?.length : split?.amounts?.length;
   const amountIndex = inputIndex(amountArgument);
   const amount = amountIndex === null ? null : pureInputValue(data.transaction?.inputs?.[amountIndex]);
-  if (amountCount !== 1 || !amount || !/^\d+$/.test(amount) || BigInt(amount) <= 0n) {
+  const splitsGas = splitSource?.GasCoin === true || splitSource?.gasCoin === true;
+  const interveningUse = commands
+    .slice(reference.commandIndex + 1, purchaseIndex)
+    .some((command) => referencesResult(command, reference.commandIndex, 0));
+  if (!splitsGas || amountCount !== 1 || interveningUse || !amount || !/^\d+$/.test(amount) || BigInt(amount) <= 0n) {
     throw new Error("Verified mint payment amount is unavailable.");
   }
   return amount;
@@ -231,18 +246,22 @@ export function verifiedReferralRecord(input, tx) {
   const { data, commands } = transactionParts(tx);
   if (normalize(data.sender) !== walletAddress) throw new Error("Transaction sender does not match the minting wallet.");
   const inputs = data.transaction?.inputs || [];
-  const candidates = commands.filter(isPurchaseCommand).flatMap((command) => {
-    const call = command?.MoveCall || command?.moveCall || command;
-    const poolIndex = inputIndex(call?.arguments?.[0]);
-    const commandPool = poolIndex === null ? "" : objectInputId(inputs[poolIndex]);
-    return commandPool === poolId && ELIGIBLE_POOLS.has(commandPool) ? [{ call, poolId: commandPool }] : [];
-  });
-  if (candidates.length === 0) throw new Error("Transaction did not contain a qualifying NFTree purchase.");
-  if (candidates.length !== 1) throw new Error("Transaction contains ambiguous qualifying NFTree purchases.");
+  const purchases = commands
+    .map((command, commandIndex) => ({ command, commandIndex }))
+    .filter(({ command }) => isPurchaseCommand(command));
+  if (purchases.length === 0) throw new Error("Transaction did not contain a qualifying NFTree purchase.");
+  if (purchases.length !== 1) throw new Error("Transaction contains ambiguous NFTree purchases.");
+  const purchase = purchases[0];
+  const call = purchase.command?.MoveCall || purchase.command?.moveCall || purchase.command;
+  const poolIndex = inputIndex(call?.arguments?.[0]);
+  const commandPool = poolIndex === null ? "" : objectInputId(inputs[poolIndex]);
+  if (commandPool !== poolId || !ELIGIBLE_POOLS.has(commandPool)) {
+    throw new Error("NFTree purchase pool does not match the claimed pool.");
+  }
 
   const timestampMs = Number(tx.timestampMs);
   if (!Number.isFinite(timestampMs) || timestampMs <= 0) throw new Error("Transaction timestamp is unavailable.");
-  const mintPriceMist = purchasePaymentMist(data, commands, candidates[0].call);
+  const mintPriceMist = purchasePaymentMist(data, commands, purchase.commandIndex, call);
   return {
     transactionDigest: String(input.digest),
     walletAddress,

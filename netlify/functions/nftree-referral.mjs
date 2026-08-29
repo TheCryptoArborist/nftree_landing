@@ -45,11 +45,14 @@ export default async (request) => {
     }
     if (!input.digest || !input.walletAddress || !input.poolId) return response({ error: "Missing mint details." }, 400);
     if (!input.challengeId || !input.signature) return response({ error: "Missing signed referral claim." }, 400);
-    await verifyReferralClaim(input, store, (message, signature, address) =>
-      verifyPersonalMessageSignature(message, signature, { address }),
-    );
     const tx = await fetchTransaction(String(input.digest));
     const record = verifiedReferralRecord(input, tx);
+    await verifyReferralClaim(
+      input,
+      store,
+      (message, signature, address) => verifyPersonalMessageSignature(message, signature, { address }),
+      Date.parse(record.transactionTimestamp),
+    );
     const result = await recordOnce(store, record);
     return response({ recorded: true, duplicate: result.duplicate, transactionDigest: record.transactionDigest });
   } catch (error) {

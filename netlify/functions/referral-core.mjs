@@ -5,8 +5,6 @@ export const ELIGIBLE_POOLS = new Set([
   "0xed43f2ffb52ef542ea2cfccd0358431923460fec8ef659febda111614e20457a",
 ]);
 export const PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5";
-export const MINT_PRICE_MIST = "25000000000";
-
 const normalize = (value) => String(value || "").toLowerCase();
 export const CHALLENGE_MAX_AGE_MS = 10 * 60 * 1000;
 
@@ -32,17 +30,24 @@ export function createReferralChallenge({ id, walletAddress, referralCode }, now
   return { ...challenge, message: referralChallengeMessage(challenge) };
 }
 
-export async function verifyReferralClaim(input, store, verifySignature, now = Date.now()) {
+export async function verifyReferralClaim(input, store, verifySignature, transactionTimestampMs) {
   const challenge = await store.get(`challenges/${input.challengeId}`, { type: "json" });
   if (!challenge) throw new Error("Referral challenge was not found.");
-  if (Date.parse(challenge.expiresAt) <= now) throw new Error("Referral challenge expired.");
   if (challenge.referralCode !== input.referralCode || challenge.walletAddress !== normalize(input.walletAddress)) {
     throw new Error("Referral challenge does not match this wallet.");
   }
-  await verifySignature(new TextEncoder().encode(referralChallengeMessage(challenge)), input.signature, challenge.walletAddress);
   const claimKey = `claims/${challenge.id}`;
   const existing = await store.get(claimKey, { type: "json" });
   if (existing && existing.digest !== input.digest) throw new Error("Referral challenge was already used.");
+  const issuedAt = Date.parse(challenge.issuedAt);
+  const expiresAt = Date.parse(challenge.expiresAt);
+  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || expiresAt <= issuedAt) {
+    throw new Error("Referral challenge window is invalid.");
+  }
+  if (!Number.isFinite(transactionTimestampMs) || transactionTimestampMs < issuedAt || transactionTimestampMs > expiresAt) {
+    throw new Error("Mint transaction is outside the referral challenge window.");
+  }
+  await verifySignature(new TextEncoder().encode(referralChallengeMessage(challenge)), input.signature, challenge.walletAddress);
   if (!existing) {
     try { await store.setJSON(claimKey, { digest: input.digest }, { onlyIfNew: true }); }
     catch (error) {
@@ -73,6 +78,41 @@ function containsObjectId(value, objectId) {
   return Object.values(value).some((item) => containsObjectId(item, objectId));
 }
 
+function commandKind(command, kind) {
+  return command?.[kind] ?? command?.[kind[0].toLowerCase() + kind.slice(1)];
+}
+
+function inputIndex(argument) {
+  const value = argument?.Input ?? argument?.input;
+  return Number.isInteger(value) ? value : null;
+}
+
+function resultIndex(argument) {
+  const value = argument?.Result ?? argument?.result;
+  return Number.isInteger(value) ? value : null;
+}
+
+function pureInputValue(input) {
+  const value = input?.Pure ?? input?.pure ?? input?.value;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") return String(value);
+  if (value && typeof value === "object" && "value" in value) return String(value.value);
+  return null;
+}
+
+function verifiedPurchasePaymentMist(data, commands) {
+  const purchase = commands.find((command) => isPurchaseCommand(command));
+  const call = purchase?.MoveCall || purchase?.moveCall || purchase;
+  const splitIndex = resultIndex(call?.arguments?.[1]);
+  const split = splitIndex === null ? null : commandKind(commands[splitIndex], "SplitCoins");
+  const amountArgument = Array.isArray(split) ? split[1]?.[0] : split?.amounts?.[0];
+  const amountIndex = inputIndex(amountArgument);
+  const amount = amountIndex === null ? null : pureInputValue(data.transaction?.inputs?.[amountIndex]);
+  if (!amount || !/^\d+$/.test(amount) || BigInt(amount) <= 0n) {
+    throw new Error("Verified mint payment amount is unavailable.");
+  }
+  return amount;
+}
+
 export function verifiedReferralRecord(input, tx) {
   if (input.referralCode !== ALLOWED_REFERRAL.code) throw new Error("Unknown referral code.");
   if (tx?.digest && tx.digest !== input.digest) throw new Error("Transaction digest does not match the verified transaction.");
@@ -88,6 +128,7 @@ export function verifiedReferralRecord(input, tx) {
 
   const timestampMs = Number(tx.timestampMs);
   if (!Number.isFinite(timestampMs) || timestampMs <= 0) throw new Error("Transaction timestamp is unavailable.");
+  const mintPriceMist = verifiedPurchasePaymentMist(data, commands);
   return {
     transactionDigest: String(input.digest),
     walletAddress,
@@ -95,9 +136,9 @@ export function verifiedReferralRecord(input, tx) {
     referralCode: ALLOWED_REFERRAL.code,
     referralName: ALLOWED_REFERRAL.name,
     transactionTimestamp: new Date(timestampMs).toISOString(),
-    mintPriceMist: MINT_PRICE_MIST,
+    mintPriceMist,
     commissionPercentage: 5,
-    commissionAmountDueMist: (BigInt(MINT_PRICE_MIST) * 5n / 100n).toString(),
+    commissionAmountDueMist: (BigInt(mintPriceMist) * 5n / 100n).toString(),
     paymentStatus: "due",
   };
 }

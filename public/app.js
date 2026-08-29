@@ -1,4 +1,5 @@
 import { ALLOWED_REFERRAL_CODE, readStoredReferral } from "/referral-storage.js";
+import { prepareReferralClaim } from "/referral-preflight.js";
 
 const API_URL = "/api/nftree-listings";
 const SALE_POOL_API_URL = "/api/nftree-sale-pools";
@@ -1504,20 +1505,20 @@ async function mintConnectedWallet() {
     }
 
     const walletAddress = signingState.signingAccountAddress || state.connectedAddress;
-    let signedReferralClaim = null;
-    if (state.referralCode) {
-      const challenge = await referralRequest({
-        action: "challenge", walletAddress, referralCode: state.referralCode,
-      });
-      const signed = await walletModule.signReferralClaim({
+    const referralPreflight = await prepareReferralClaim({
+      referralCode: state.referralCode,
+      walletAddress,
+      requestChallenge: referralRequest,
+      signClaim: (message) => walletModule.signReferralClaim({
         walletName: signingState.signingWalletName || state.connectedWallet,
         accountAddress: walletAddress,
-        message: challenge.message,
-      });
-      signedReferralClaim = {
-        challengeId: challenge.challengeId, signature: signed.signature,
-        walletAddress, referralCode: state.referralCode,
-      };
+        message,
+      }),
+    });
+    if (referralPreflight.error) {
+      const notice = `Referral verification is unavailable (${referralPreflight.error.message}). Continuing with an unattributed mint.`;
+      setWalletStatus(notice, "connecting");
+      elements.mintContractStatus.textContent = notice;
     }
 
     const result = await walletModule.mintWithConnectedWallet({
@@ -1529,23 +1530,25 @@ async function mintConnectedWallet() {
     const digest = String(result.digest || "");
     const explorerUrl = suiExplorerTxUrl(digest);
     let referralMessage = "";
-    if (state.referralCode) {
+    if (referralPreflight.claim) {
       try {
         const claim = {
             digest,
             poolId: result.poolId || pool?.poolId || "",
-            ...signedReferralClaim,
+            ...referralPreflight.claim,
         };
         await recordReferralWithRetry(claim);
         savePendingReferralClaims(pendingReferralClaims().filter((item) => item.digest !== digest));
         referralMessage = ` Referral recorded for ${escapeHtml(state.referralName)}.`;
       } catch (attributionError) {
-        const claim = { digest, poolId: result.poolId || pool?.poolId || "", ...signedReferralClaim };
+        const claim = { digest, poolId: result.poolId || pool?.poolId || "", ...referralPreflight.claim };
         const pending = pendingReferralClaims().filter((item) => item.digest !== digest);
         pending.push(claim);
         savePendingReferralClaims(pending);
         referralMessage = ` The NFT mint succeeded, but referral attribution is pending and will be retried: ${escapeHtml(attributionError.message)}.`;
       }
+    } else if (state.referralCode) {
+      referralMessage = " This mint was completed without referral attribution because referral verification was unavailable or unsupported.";
     }
     const successMessage =
       `Mint succeeded. Transaction digest: ${escapeHtml(digest)}. ` +

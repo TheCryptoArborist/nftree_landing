@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readStoredReferral, REFERRAL_MAX_AGE_MS } from "../public/referral-storage.js";
 import { createReferralChallenge, PACKAGE_ID, recordOnce, verifiedReferralRecord, verifyReferralClaim } from "../netlify/functions/referral-core.mjs";
+import { prepareReferralClaim } from "../public/referral-preflight.js";
 
 const POOL = "0x8cb91464eec7ada1af801a439207647d78de66bc0d4f124d6437091745a0163a";
 const WALLET = "0x123";
@@ -15,7 +16,7 @@ function storageWith(payload) {
   };
 }
 
-function validTransaction(overrides = {}) {
+function validTransaction(overrides = {}, paymentMist = "30000000000") {
   return {
     effects: { status: { status: "success" } },
     timestampMs: 1_700_000_000_000,
@@ -23,8 +24,19 @@ function validTransaction(overrides = {}) {
       data: {
         sender: WALLET,
         transaction: {
-          inputs: [{ Object: { SharedObject: { objectId: POOL } } }],
-          transactions: [{ MoveCall: { package: PACKAGE_ID, module: "collection", function: "purchase" } }],
+          inputs: [
+            { Object: { SharedObject: { objectId: POOL } } },
+            { Pure: { value: paymentMist } },
+          ],
+          transactions: [
+            { SplitCoins: [{ GasCoin: true }, [{ Input: 1 }]] },
+            { MoveCall: {
+              package: PACKAGE_ID,
+              module: "collection",
+              function: "purchase",
+              arguments: [{ Input: 0 }, { Result: 0 }],
+            } },
+          ],
         },
       },
     },
@@ -81,7 +93,8 @@ test("valid successful sales-pool mint is recorded once", async () => {
   assert.equal((await recordOnce(store, record)).duplicate, false);
   assert.equal((await recordOnce(store, record)).duplicate, true);
   assert.equal(values.size, 1);
-  assert.equal(record.commissionAmountDueMist, "1250000000");
+  assert.equal(record.mintPriceMist, "30000000000");
+  assert.equal(record.commissionAmountDueMist, "1500000000");
 });
 
 test("signed referral challenge is wallet-bound, one-time, and safely retryable for one digest", async () => {
@@ -117,3 +130,59 @@ test("signed referral challenge is wallet-bound, one-time, and safely retryable 
     /does not match/,
   );
 });
+
+test("historical mint outside the signed challenge window is rejected", async () => {
+  const now = 1_700_000_000_000;
+  const challenge = createReferralChallenge({ id: "historical", walletAddress: WALLET, referralCode: "mischief-finance" }, now);
+  const store = challengeStore(challenge);
+  await assert.rejects(
+    verifyReferralClaim({ ...input, challengeId: challenge.id, signature: "sig" }, store, async () => {}, now - 1),
+    /outside the referral challenge window/,
+  );
+});
+
+test("mint inside challenge window is accepted and an idempotent retry is accepted after expiry", async () => {
+  const now = 1_700_000_000_000;
+  const challenge = createReferralChallenge({ id: "delayed", walletAddress: WALLET, referralCode: "mischief-finance" }, now);
+  const store = challengeStore(challenge);
+  const claim = { ...input, challengeId: challenge.id, signature: "sig" };
+  // The first server submission itself may be delayed; the on-chain timestamp is the security boundary.
+  await verifyReferralClaim(claim, store, async () => {}, now + 1000);
+  await verifyReferralClaim(claim, store, async () => {}, now + 1000);
+  await assert.rejects(
+    verifyReferralClaim({ ...claim, digest: "different" }, store, async () => {}, now + 1000),
+    /already used/,
+  );
+});
+
+test("referral preflight failures and unsupported personal-message signing allow an unattributed mint", async () => {
+  const failureCases = [
+    {
+      requestChallenge: async () => { throw new Error("challenge unavailable"); },
+      signClaim: async () => ({ signature: "unused" }),
+    },
+    {
+      requestChallenge: async () => ({ challengeId: "id", message: "message" }),
+      signClaim: async () => { throw new Error("signing unsupported"); },
+    },
+  ];
+  for (const { requestChallenge, signClaim } of failureCases) {
+    const result = await prepareReferralClaim({
+      referralCode: "mischief-finance", walletAddress: WALLET,
+      requestChallenge, signClaim,
+    });
+    assert.equal(result.claim, null);
+    assert.ok(result.error);
+  }
+});
+
+function challengeStore(challenge) {
+  const values = new Map([[`challenges/${challenge.id}`, challenge]]);
+  return {
+    get: async (key) => values.get(key) || null,
+    setJSON: async (key, value) => {
+      if (values.has(key)) throw new Error("already exists");
+      values.set(key, value);
+    },
+  };
+}

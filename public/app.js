@@ -1,7 +1,3 @@
-import { ALLOWED_REFERRAL_CODE, readStoredReferral } from "/referral-storage.js";
-import { clearPreparedReferralClaim, prepareReferralClaim } from "/referral-preflight.js";
-import { nextPendingClaim, ReferralRequestError, shouldRetryReferral } from "/referral-retry.js";
-
 const API_URL = "/api/nftree-listings";
 const SALE_POOL_API_URL = "/api/nftree-sale-pools";
 const COLLECTION_URL =
@@ -11,12 +7,7 @@ const MINT_CONFIG_ID = "0xe83616020f61f73b30c40fd3f888ed397626afd071bd4666374c30
 const MINT_PRICE_MIST = "25000000000";
 const GAS_WARNING_BUFFER_MIST = "100000000";
 const DEBUG_MINT = new URLSearchParams(window.location.search).get("debugMint") === "1";
-const REFERRAL_STORAGE_KEY = "nftreeReferral";
-const REFERRAL_PENDING_KEY = "nftreePendingReferralClaims";
 const CONNECTED_WALLET_STORAGE_KEY = "nftreeConnectedWallet";
-const REFERRAL_NAMES = Object.freeze({
-  "mischief-finance": "Mischief Finance",
-});
 const MINT_MESSAGES = Object.freeze({
   walletDisconnected: "Wallet disconnected.",
   connectBeforeMinting: "Connect a Sui wallet before minting.",
@@ -116,8 +107,6 @@ const state = {
   isConnecting: false,
   isDisconnecting: false,
   isMinting: false,
-  referralCode: "",
-  referralName: "",
   salePoolsLoaded: false,
   salePoolStatus: fallbackSalePoolStatus,
 };
@@ -133,7 +122,6 @@ const elements = {
   mintContractStatus: document.querySelector("#mintContractStatus"),
   mintPoolCount: document.querySelector("#mintPoolCount"),
   refreshListings: document.querySelector("#refreshListings"),
-  referralSummary: document.querySelector("#referralSummary"),
   salePoolCount: document.querySelector("#salePoolCount"),
   salePoolGrid: document.querySelector("#salePoolGrid"),
   saleMintNowButton: document.querySelector("#saleMintNowButton"),
@@ -239,39 +227,6 @@ function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
-function normalizeReferralCode(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 64);
-}
-
-function referralNameFromCode(code) {
-  if (REFERRAL_NAMES[code]) return REFERRAL_NAMES[code];
-  return code
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function saveReferral(code, name) {
-  const payload = {
-    code,
-    name,
-    sourcePath: window.location.pathname,
-    savedAt: new Date().toISOString(),
-  };
-
-  try {
-    window.localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(payload));
-  } catch {}
-
-  document.cookie = `nftreeReferral=${encodeURIComponent(code)}; path=/; max-age=2592000; SameSite=Lax`;
-}
-
 function readStoredWalletConnection() {
   try {
     const payload = JSON.parse(window.localStorage.getItem(CONNECTED_WALLET_STORAGE_KEY) || "{}");
@@ -303,92 +258,6 @@ function clearStoredWalletConnection() {
   try {
     window.localStorage.removeItem(CONNECTED_WALLET_STORAGE_KEY);
   } catch {}
-}
-
-function renderReferralState() {
-  if (!elements.referralSummary) return;
-
-  if (!state.referralCode) {
-    elements.referralSummary.hidden = true;
-    elements.referralSummary.textContent = "";
-    return;
-  }
-
-  elements.referralSummary.textContent = `Referral source: ${state.referralName}.`;
-  elements.referralSummary.hidden = false;
-}
-
-function captureReferralSource() {
-  const params = new URLSearchParams(window.location.search);
-  const requestedCode = normalizeReferralCode(params.get("ref") || params.get("ambassador") || "");
-  const code = requestedCode === ALLOWED_REFERRAL_CODE ? requestedCode : "";
-  const stored = code ? null : readStoredReferral();
-  const referralCode = code || stored?.code || "";
-  const referralName = referralCode ? referralNameFromCode(referralCode) : "";
-
-  state.referralCode = referralCode;
-  state.referralName = referralName;
-
-  if (referralCode && code) {
-    saveReferral(referralCode, referralName);
-  }
-
-  renderReferralState();
-}
-
-async function referralRequest(body) {
-  let response;
-  try {
-    response = await fetch("/api/nftree-referral", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-    });
-  } catch (error) {
-    throw new ReferralRequestError(error instanceof Error ? error.message : "Referral service is unavailable.");
-  }
-  let payload;
-  try { payload = await response.json(); }
-  catch { throw new ReferralRequestError("Referral service returned an invalid response.", response.status || 503); }
-  if (!response.ok) throw new ReferralRequestError(payload.error || "Referral attribution was not saved.", response.status);
-  return payload;
-}
-
-function pendingReferralClaims() {
-  try { return JSON.parse(window.localStorage.getItem(REFERRAL_PENDING_KEY) || "[]"); } catch { return []; }
-}
-
-function savePendingReferralClaims(claims) {
-  try { window.localStorage.setItem(REFERRAL_PENDING_KEY, JSON.stringify(claims)); } catch {}
-}
-
-async function recordReferralWithRetry(claim, attempts = 3) {
-  let lastError;
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try { return await referralRequest(claim); }
-    catch (error) {
-      lastError = error;
-      if (!shouldRetryReferral(error)) throw error;
-      if (attempt + 1 < attempts) await wait(500 * (2 ** attempt));
-    }
-  }
-  throw lastError;
-}
-
-async function retryPendingReferralClaims() {
-  const pending = pendingReferralClaims();
-  if (!pending.length) return;
-  const remaining = [];
-  const now = Date.now();
-  for (const claim of pending) {
-    if (Number(claim.nextAttemptAt || 0) > now) { remaining.push(claim); continue; }
-    try { await recordReferralWithRetry(claim, 1); }
-    catch (error) {
-      if (shouldRetryReferral(error)) {
-        const retried = nextPendingClaim(claim, now);
-        if (retried) remaining.push(retried);
-      }
-    }
-  }
-  savePendingReferralClaims(remaining);
 }
 
 function isMintRoute(pathname = window.location.pathname) {
@@ -1521,23 +1390,6 @@ async function mintConnectedWallet() {
       throw new Error("The NFTree wallet module cannot mint with the connected wallet yet. Refresh the page and try again.");
     }
 
-    const walletAddress = signingState.signingAccountAddress || state.connectedAddress;
-    const referralPreflight = await prepareReferralClaim({
-      referralCode: state.referralCode,
-      walletAddress,
-      requestChallenge: referralRequest,
-      signClaim: (message) => walletModule.signReferralClaim({
-        walletName: signingState.signingWalletName || state.connectedWallet,
-        accountAddress: walletAddress,
-        message,
-      }),
-    });
-    if (referralPreflight.error) {
-      const notice = `Referral verification is unavailable (${referralPreflight.error.message}). Continuing with an unattributed mint.`;
-      setWalletStatus(notice, "connecting");
-      elements.mintContractStatus.textContent = notice;
-    }
-
     const result = await walletModule.mintWithConnectedWallet({
       walletName: signingState.signingWalletName || state.connectedWallet,
       accountAddress: signingState.signingAccountAddress || state.connectedAddress,
@@ -1546,36 +1398,9 @@ async function mintConnectedWallet() {
 
     const digest = String(result.digest || "");
     const explorerUrl = suiExplorerTxUrl(digest);
-    let referralMessage = "";
-    if (referralPreflight.claim) {
-      try {
-        const claim = {
-          digest,
-          poolId: result.poolId || pool?.poolId || "",
-          ...referralPreflight.claim,
-        };
-        await recordReferralWithRetry(claim);
-        clearPreparedReferralClaim(state.referralCode, walletAddress);
-        savePendingReferralClaims(pendingReferralClaims().filter((item) => item.digest !== digest));
-        referralMessage = ` Referral recorded for ${escapeHtml(state.referralName)}.`;
-      } catch (attributionError) {
-        const claim = { digest, poolId: result.poolId || pool?.poolId || "", ...referralPreflight.claim };
-        const pending = pendingReferralClaims().filter((item) => item.digest !== digest);
-        const retryClaim = shouldRetryReferral(attributionError) ? nextPendingClaim(claim) : null;
-        if (retryClaim) pending.push(retryClaim);
-        savePendingReferralClaims(pending);
-        if (!retryClaim) clearPreparedReferralClaim(state.referralCode, walletAddress);
-        referralMessage = retryClaim
-          ? ` The NFT mint succeeded, but referral attribution is pending and will be retried: ${escapeHtml(attributionError.message)}.`
-          : ` The NFT mint succeeded, but referral attribution was rejected and will not be retried: ${escapeHtml(attributionError.message)}.`;
-      }
-    } else if (state.referralCode) {
-      referralMessage = " This mint was completed without referral attribution because referral verification was unavailable or unsupported.";
-    }
     const successMessage =
       `Mint succeeded. Transaction digest: ${escapeHtml(digest)}. ` +
-      `<a href="${escapeHtml(explorerUrl)}" target="_blank" rel="noreferrer">View on Sui Explorer</a>` +
-      referralMessage;
+      `<a href="${escapeHtml(explorerUrl)}" target="_blank" rel="noreferrer">View on Sui Explorer</a>`;
     await loadSalePools();
     refreshConnectedBalance();
     setWalletStatus(`Mint succeeded through ${result.walletName}.`, "ready");
@@ -1585,8 +1410,6 @@ async function mintConnectedWallet() {
       explorerUrl,
       walletName: result.walletName,
       poolId: result.poolId || "",
-      referralCode: state.referralCode,
-      referralName: state.referralName,
     });
   } catch (error) {
     const message = mintErrorMessage(error, "Wallet mint was not completed.");
@@ -1682,8 +1505,6 @@ elements.backToTopButton?.addEventListener("click", scrollToTop);
 window.addEventListener("scroll", updateBackToTopButton, { passive: true });
 window.addEventListener("resize", updateBackToTopButton);
 
-captureReferralSource();
-retryPendingReferralClaims();
 refreshWallets();
 window.NFTreeWalletMint?.onWalletsChanged?.(setWallets);
 renderWalletState();

@@ -1,3 +1,9 @@
+const REFERRAL = Object.freeze({
+  code: "mischief-finance",
+  name: "Mischief Finance",
+  scope: "sales-pool-mints",
+});
+const REFERRAL_STORAGE_KEY = "nftreeReferral";
 const WALLET_STORAGE_KEY = "nftreeConnectedWallet";
 
 const state = {
@@ -124,6 +130,26 @@ function setModalStatus(message, mode = "") {
   elements.modalStatus.textContent = message;
   elements.modalStatus.classList.toggle("is-ready", mode === "ready");
   elements.modalStatus.classList.toggle("is-error", mode === "error");
+}
+
+function saveReferral() {
+  const payload = {
+    ...REFERRAL,
+    savedAt: new Date().toISOString(),
+    sourcePath: window.location.pathname,
+  };
+
+  try {
+    window.localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(payload));
+  } catch {}
+
+  document.cookie = `nftreeReferral=${encodeURIComponent(REFERRAL.code)}; path=/; max-age=2592000; SameSite=Lax`;
+
+  document.querySelectorAll("[data-referral-link]").forEach((link) => {
+    const url = new URL(link.getAttribute("href"), window.location.origin);
+    url.searchParams.set("ref", REFERRAL.code);
+    link.href = `${url.pathname}${url.search}${url.hash}`;
+  });
 }
 
 function saveWalletConnection(walletName, accountAddress) {
@@ -301,6 +327,7 @@ function bindEvents() {
   });
 }
 
+saveReferral();
 bindEvents();
 refreshWallets();
 renderWalletState();

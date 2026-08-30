@@ -25,6 +25,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/nftree-referral"
+  to = "/.netlify/functions/nftree-referral"
+  status = 200
+
+[[redirects]]
   from = "/api/nftree-sale-pools"
   to = "/.netlify/functions/nftree-sale-pools"
   status = 200

@@ -107,6 +107,7 @@ const state = {
   isConnecting: false,
   isDisconnecting: false,
   isMinting: false,
+  isRestoringWallet: false,
   salePoolsLoaded: false,
   salePoolStatus: fallbackSalePoolStatus,
 };
@@ -145,6 +146,10 @@ const elements = {
 
 let walletChangeUnsubscribe = () => {};
 let mintRouteFocusTimeout = 0;
+let walletRestoreAttempted = false;
+let walletRestoreAwaitingRegistration = false;
+let walletRestoreLateAttempted = false;
+let walletRestorePromise = null;
 
 function setStatus(message, isError = false) {
   elements.listingStatus.textContent = message;
@@ -985,6 +990,12 @@ function updateWalletButton() {
     return;
   }
 
+  if (state.isRestoringWallet) {
+    elements.walletConnectButton.textContent = "Restoring wallet...";
+    elements.walletConnectButton.disabled = true;
+    return;
+  }
+
   if (state.isDisconnecting) {
     elements.walletConnectButton.textContent = "Disconnecting...";
     elements.walletConnectButton.disabled = true;
@@ -1001,43 +1012,121 @@ function updateWalletButton() {
   elements.walletConnectButton.disabled = false;
 }
 
-function hydrateStoredWalletConnection() {
-  if (state.connectedAddress) return true;
+function savedWalletIsRegistered(stored) {
+  const target = normalizedWalletName(stored?.walletName);
+  return Boolean(target && state.wallets.some((wallet) => normalizedWalletName(wallet?.name) === target));
+}
 
-  const stored = readStoredWalletConnection();
-  const walletModule = window.NFTreeWalletMint;
-  if (!stored || typeof walletModule?.getConnectedWalletState !== "function") return false;
+function applyRestoredWalletConnection(stored, restored, source) {
+  const accountAddress = restored?.accountAddress || restored?.account || "";
+  if (accountAddress !== stored.accountAddress) return false;
 
-  const moduleState = walletModule.getConnectedWalletState({
-    accountAddress: stored.accountAddress,
-    walletName: stored.walletName,
-  });
-  if (!moduleState.accountAddress || !moduleState.walletExists || !moduleState.accountExists) return false;
-
-  state.connectedWallet = moduleState.walletName || stored.walletName;
-  state.connectedAddress = moduleState.accountAddress;
+  state.connectedWallet = restored.walletName || stored.walletName;
+  state.connectedAddress = accountAddress;
   state.selectedWallet = state.connectedWallet;
   subscribeToConnectedWallet();
+  renderWalletState();
   refreshConnectedBalance();
-  setWalletStatus(`Connected to ${state.connectedWallet}: ${shortenAddress(state.connectedAddress)}. Press Mint NFTree to submit a transaction.`, "ready");
-  elements.mintContractStatus.textContent = `Connected: ${shortenAddress(state.connectedAddress)}. Minting is ready but no transaction has been submitted.`;
+  updateWalletButton();
+  updateMintButtons();
+  renderCompactWalletOptions();
+  renderWalletModalOptions();
+  setWalletStatus(`Restored ${state.connectedWallet}: ${shortenAddress(state.connectedAddress)}. Press Mint NFTree to submit a transaction.`, "ready");
+  elements.mintContractStatus.textContent = `Restored: ${shortenAddress(state.connectedAddress)}. Minting is ready but no transaction has been submitted.`;
   debugMint("Restored connected wallet from saved hint", {
     walletName: state.connectedWallet,
     account: state.connectedAddress,
-    moduleState,
+    source,
   });
   return true;
+}
+
+function restoreStoredWalletConnection() {
+  if (state.connectedAddress) return Promise.resolve(true);
+  if (walletRestorePromise) return walletRestorePromise;
+
+  const stored = readStoredWalletConnection();
+  const walletModule = window.NFTreeWalletMint;
+  if (!stored || typeof walletModule?.getConnectedWalletState !== "function" ||
+      typeof walletModule?.restoreWalletConnection !== "function") {
+    return Promise.resolve(false);
+  }
+
+  const registeredNow = savedWalletIsRegistered(stored);
+  const isLateAttempt = walletRestoreAttempted && walletRestoreAwaitingRegistration &&
+    !walletRestoreLateAttempted && registeredNow;
+  if (walletRestoreAttempted && !isLateAttempt) return Promise.resolve(false);
+
+  walletRestoreAttempted = true;
+  if (isLateAttempt) walletRestoreLateAttempted = true;
+  state.isRestoringWallet = true;
+  updateWalletButton();
+  setWalletStatus(`Restoring ${stored.walletName} without opening a wallet prompt.`, "connecting");
+
+  const activePromise = (async () => {
+    try {
+      const moduleState = walletModule.getConnectedWalletState({
+        accountAddress: stored.accountAddress,
+        walletName: stored.walletName,
+      });
+      if (moduleState.walletExists && moduleState.accountExists &&
+          moduleState.accountAddress === stored.accountAddress && moduleState.canSign) {
+        walletRestoreAwaitingRegistration = false;
+        return applyRestoredWalletConnection(stored, {
+          accountAddress: moduleState.accountAddress,
+          walletName: moduleState.walletName || stored.walletName,
+        }, "existing-wallet-state");
+      }
+
+      const restored = await walletModule.restoreWalletConnection(stored);
+      if (restored?.connected && applyRestoredWalletConnection(stored, restored, "silent-connect")) {
+        walletRestoreAwaitingRegistration = false;
+        return true;
+      }
+
+      walletRestoreAwaitingRegistration = restored?.reason === "wallet-not-registered";
+      if (restored?.definitive === true) clearStoredWalletConnection();
+      setWalletStatus(
+        restored?.definitive
+          ? "The previously connected account is no longer available. Connect a wallet to continue."
+          : "The saved wallet could not be restored silently. Connect a wallet to continue.",
+        restored?.definitive ? "error" : "",
+      );
+      return false;
+    } catch (error) {
+      debugMint("Saved wallet restore failed", errorDebugDetails(error));
+      setWalletStatus("The saved wallet could not be restored silently. Connect a wallet to continue.");
+      return false;
+    } finally {
+      state.isRestoringWallet = false;
+      renderWalletState();
+      updateWalletButton();
+      updateMintButtons();
+      renderCompactWalletOptions();
+      renderWalletModalOptions();
+    }
+  })();
+  walletRestorePromise = activePromise;
+  void activePromise.finally(() => {
+    if (walletRestorePromise !== activePromise) return;
+    walletRestorePromise = null;
+    const stored = readStoredWalletConnection();
+    if (walletRestoreAwaitingRegistration && !walletRestoreLateAttempted && savedWalletIsRegistered(stored)) {
+      queueMicrotask(() => { void restoreStoredWalletConnection(); });
+    }
+  });
+  return activePromise;
 }
 
 function setWallets(wallets) {
   state.wallets = Array.isArray(wallets) ? orderedWallets(wallets) : [];
   renderCompactWalletOptions();
   renderWalletModalOptions();
-  hydrateStoredWalletConnection();
+  void restoreStoredWalletConnection();
 
-  if (!state.connectedAddress && !state.wallets.length) {
+  if (!state.connectedAddress && !state.isRestoringWallet && !state.wallets.length) {
     setWalletStatus("No Sui wallet detected. Install or unlock a Sui wallet, then try again.", "error");
-  } else if (!state.connectedAddress) {
+  } else if (!state.connectedAddress && !state.isRestoringWallet) {
     setWalletStatus("Choose a Sui wallet before minting.");
   }
 

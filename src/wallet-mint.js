@@ -102,17 +102,24 @@ function findWallet(walletName) {
   );
 }
 
+function findInstalledWallet(walletName) {
+  const target = normalizedName(walletName);
+  if (!target) return undefined;
+  return walletsApi.get().find((wallet) => normalizedName(wallet?.name) === target);
+}
+
 function getMainnetAccount(accounts) {
-  return accounts.find((account) => account.chains?.includes(MAINNET_CHAIN)) || accounts[0];
+  return accounts.find((account) => account.chains?.includes(MAINNET_CHAIN));
 }
 
 function getConnectedAccount(wallet, accountAddress) {
-  const cached = connectedAccounts.get(`${normalizedName(wallet?.name)}:${accountAddress}`);
-  if (cached?.address) return cached;
-
   const accounts = Array.from(wallet?.accounts || []);
-  const exact = accounts.find((account) => account.address === accountAddress && account.chains?.includes(MAINNET_CHAIN));
-  return exact || accounts.find((account) => account.address === accountAddress) || getMainnetAccount(accounts);
+  if (accountAddress) {
+    const cached = connectedAccounts.get(`${normalizedName(wallet?.name)}:${accountAddress}`);
+    if (cached?.address === accountAddress && cached.chains?.includes(MAINNET_CHAIN)) return cached;
+    return accounts.find((account) => account.address === accountAddress && account.chains?.includes(MAINNET_CHAIN));
+  }
+  return getMainnetAccount(accounts);
 }
 
 function forgetConnectedAccount(walletName, accountAddress) {
@@ -132,7 +139,7 @@ function rememberConnectedAccount(walletName, account) {
 function getConnectedWalletState({ walletName, accountAddress } = {}) {
   const effectiveWalletName = walletName || activeConnection.walletName;
   const effectiveAccountAddress = accountAddress || activeConnection.accountAddress;
-  const wallet = findWallet(effectiveWalletName);
+  const wallet = walletName ? findInstalledWallet(effectiveWalletName) : findWallet(effectiveWalletName);
   const account = wallet && effectiveAccountAddress ? getConnectedAccount(wallet, effectiveAccountAddress) : undefined;
 
   return {
@@ -144,6 +151,67 @@ function getConnectedWalletState({ walletName, accountAddress } = {}) {
     wallet: walletDebugDetails(wallet),
     walletName: wallet?.name || effectiveWalletName || "",
   };
+}
+
+function exactMainnetAccount(accounts, accountAddress) {
+  return Array.from(accounts || []).find(
+    (account) => account?.address === accountAddress && account.chains?.includes(MAINNET_CHAIN),
+  );
+}
+
+async function restoreWalletConnection({ walletName, accountAddress } = {}) {
+  if (!walletName || !accountAddress) {
+    return { connected: false, definitive: false, reason: "missing-saved-connection" };
+  }
+
+  const wallet = findInstalledWallet(walletName);
+  if (!wallet) {
+    return { connected: false, definitive: false, reason: "wallet-not-registered", walletName };
+  }
+
+  const connectFeature = wallet.features?.[StandardConnect];
+  if (!connectFeature?.connect || !hasSigningFeature(wallet)) {
+    return { connected: false, definitive: false, reason: "wallet-cannot-restore", walletName: wallet.name };
+  }
+
+  const cached = connectedAccounts.get(`${normalizedName(wallet.name)}:${accountAddress}`);
+  const existing = exactMainnetAccount([cached, ...Array.from(wallet.accounts || [])], accountAddress);
+  if (existing) {
+    rememberConnectedAccount(wallet.name, existing);
+    return { connected: true, account: existing.address, accountAddress: existing.address, walletName: wallet.name };
+  }
+
+  let connection;
+  try {
+    connection = await connectFeature.connect({ silent: true });
+  } catch (error) {
+    debugMint("Silent wallet restore failed", {
+      walletName: wallet.name,
+      accountAddress,
+      error: errorDebugDetails(error),
+    });
+    return { connected: false, definitive: false, reason: "silent-connect-failed", walletName: wallet.name };
+  }
+
+  const returnedAccounts = Array.from(connection?.accounts || []);
+  const currentAccounts = Array.from(wallet.accounts || []);
+  const restored = exactMainnetAccount([...returnedAccounts, ...currentAccounts], accountAddress);
+  if (!restored) {
+    const reportedAccounts = Array.isArray(connection?.accounts) || returnedAccounts.length > 0 || currentAccounts.length > 0;
+    return {
+      connected: false,
+      definitive: reportedAccounts,
+      reason: reportedAccounts ? "saved-account-unavailable" : "silent-restore-unavailable",
+      walletName: wallet.name,
+    };
+  }
+
+  rememberConnectedAccount(wallet.name, restored);
+  debugMint("Silent wallet restore succeeded", {
+    walletName: wallet.name,
+    account: accountDebugDetails(restored),
+  });
+  return { connected: true, account: restored.address, accountAddress: restored.address, walletName: wallet.name };
 }
 
 function firstAvailablePool(salePoolStatus) {
@@ -470,14 +538,17 @@ async function disconnectWallet({ walletName, accountAddress } = {}) {
 function onConnectedWalletChange({ walletName, accountAddress }, callback) {
   if (typeof callback !== "function") return () => {};
 
-  const wallet = findWallet(walletName);
+  const wallet = findInstalledWallet(walletName);
   const on = wallet?.features?.[StandardEvents]?.on;
   if (!on) return () => {};
 
   return on("change", (properties) => {
     if (!Object.hasOwn(properties, "accounts")) return;
 
-    const account = getMainnetAccount(Array.from(properties.accounts || []));
+    const accounts = Array.from(properties.accounts || []);
+    const account = accountAddress
+      ? exactMainnetAccount(accounts, accountAddress)
+      : getMainnetAccount(accounts);
     if (!account?.address) {
       forgetConnectedAccount(wallet.name, accountAddress);
       callback({ connected: false, walletName: wallet.name, account: "" });
@@ -526,4 +597,5 @@ window.NFTreeWalletMint = {
   mintWithConnectedWallet,
   onConnectedWalletChange,
   onWalletsChanged,
+  restoreWalletConnection,
 };

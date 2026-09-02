@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "vite build --config vite.wallet.config.mjs",
+    "build": "node scripts/verify-garden-battles-release.mjs && vite build --config vite.wallet.config.mjs",
     "build:wallet": "vite build --config vite.wallet.config.mjs",
     "lint": "node --check public/app.js && node --check public/referral-storage.js && node --check public/referral-preflight.js && node --check public/referral-retry.js && node --check public/r/mischief-finance/ambassador.js && node --check netlify/functions/nftree-listings.mjs && node --check netlify/functions/nftree-referral.mjs && node --check netlify/functions/nftree-sale-pools.mjs && node --check netlify/functions/referral-core.mjs",
     "test": "node --test"

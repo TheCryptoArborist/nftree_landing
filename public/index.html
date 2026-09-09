@@ -9,6 +9,7 @@
       content="NFTree is the Sui NFT collection for minting, ownership, and TREE ecosystem game utility. Shop active NFTrees from TradePort at nftree.net."
     />
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/sale-pool-rarity-summary.css" />
   </head>
   <body>
     <a class="skip-link" href="#nfts">Skip to NFTree shop</a>
@@ -129,21 +130,20 @@
             <span>Sales pool mint</span>
             <h3>Mint from the active sale pool</h3>
             <p>
-              This is the transaction path. Connect a wallet, review the active pool, then mint the next available
+              This is the transaction path. Connect a wallet, review the live rarity inventory, then mint the next available
               NFTree for 25 SUI.
             </p>
             <div class="sale-pool-summary" aria-label="NFTree sale pool inventory">
               <div>
-                <span>Sale pool inventory</span>
+                <span>Grand total</span>
                 <strong id="mintPoolCount">Checking pools</strong>
               </div>
               <div>
-                <span>Active pool</span>
+                <span>Minting from</span>
                 <strong id="activePoolLabel">Loading</strong>
               </div>
             </div>
-            <div class="sale-pool-grid" id="salePoolGrid" aria-label="Configured NFTree sale pools"></div>
-            <p class="referral-summary" id="referralSummary" aria-live="polite" hidden></p>
+            <div class="sale-pool-grid" id="salePoolGrid" aria-label="NFTree sale-pool rarity inventory"></div>
             <p class="wallet-balance-summary" id="walletBalanceSummary" aria-live="polite" hidden></p>
           </article>
           <aside class="acquisition-card listing-path-card" aria-label="NFTree listing path">
@@ -164,7 +164,7 @@
                 <strong>TradePort</strong>
               </div>
               <div class="stat-card">
-                <span>Pool NFTs</span>
+                <span>Sale pool total</span>
                 <strong id="salePoolCount">Loading</strong>
               </div>
             </div>
@@ -299,5 +299,6 @@
 
     <script src="/assets/nftree-wallet-mint.js"></script>
     <script type="module" src="/app.js"></script>
+    <script type="module" src="/sale-pool-rarity-summary.js"></script>
   </body>
 </html>

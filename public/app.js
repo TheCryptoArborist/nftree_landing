@@ -133,6 +133,7 @@ const elements = {
   listingStatus: document.querySelector("#listingStatus"),
   mintContractStatus: document.querySelector("#mintContractStatus"),
   mintPoolCount: document.querySelector("#mintPoolCount"),
+  mintPriceLabel: document.querySelector("#mintPriceLabel"),
   refreshListings: document.querySelector("#refreshListings"),
   referralSummary: document.querySelector("#referralSummary"),
   salePoolCount: document.querySelector("#salePoolCount"),
@@ -306,16 +307,10 @@ function saveReferral(code, name) {
 }
 
 function renderReferralState() {
+  // Referral attribution remains active, but ambassador compensation is not public shop copy.
   if (!elements.referralSummary) return;
-
-  if (!state.referralCode) {
-    elements.referralSummary.hidden = true;
-    elements.referralSummary.textContent = "";
-    return;
-  }
-
-  elements.referralSummary.textContent = `Referral source: ${state.referralName}. A 5% commission will be recorded after a verified mint.`;
-  elements.referralSummary.hidden = false;
+  elements.referralSummary.hidden = true;
+  elements.referralSummary.textContent = "";
 }
 
 function captureReferralSource() {
@@ -471,25 +466,97 @@ function listingMatches(listing) {
   return haystack.includes(query);
 }
 
-function renderSalePoolCard(pool, activePoolId) {
-  const isActive = pool.poolId === activePoolId;
-  const label = escapeHtml(pool.label || "Sale pool");
-  const count = Number(pool.count || 0);
-  const status = count > 0 ? `${formatInteger(count)} available` : "Empty";
-  const range = escapeHtml(salePoolRange(pool));
-  const poolId = escapeHtml(shortId(pool.poolId));
-  const description = escapeHtml(pool.description || "NFTree sale pool");
+const SALE_POOL_RARITY_ORDER = ["Common", "Rare", "Epic", "Legendary", "Mythic", "One of One"];
 
-  return `
-    <article class="sale-pool-card ${isActive ? "is-active" : ""}">
-      <div>
-        <span>${label}${isActive ? " active" : ""}</span>
-        <strong>${status}</strong>
-      </div>
-      <p>${description}</p>
-      <small>${range} | ${poolId}</small>
-    </article>
-  `;
+function normalizeSalePoolRarity(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (!normalized) return "Other / Unranked";
+  if (["1 of 1", "one of one", "oneofone", "1/1"].includes(normalized)) return "One of One";
+
+  const known = SALE_POOL_RARITY_ORDER.find((rarity) => rarity.toLowerCase() === normalized);
+  if (known) return known;
+  return normalized.replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function salePoolRarityInventory(pools, reportedTotal) {
+  const counts = new Map(SALE_POOL_RARITY_ORDER.map((rarity) => [rarity, 0]));
+  let countedTotal = 0;
+  let hasBreakdown = false;
+
+  for (const pool of pools) {
+    const breakdown = pool?.rarityBreakdown;
+    if (!breakdown || typeof breakdown !== "object") continue;
+    hasBreakdown = true;
+
+    for (const [rawRarity, rawCount] of Object.entries(breakdown)) {
+      const numericCount = Number(rawCount);
+      const count = Number.isFinite(numericCount) && numericCount > 0 ? Math.trunc(numericCount) : 0;
+      const rarity = normalizeSalePoolRarity(rawRarity);
+      counts.set(rarity, (counts.get(rarity) || 0) + count);
+      countedTotal += count;
+    }
+  }
+
+  const numericReportedTotal = Number(reportedTotal);
+  const apiTotal = Number.isFinite(numericReportedTotal) && numericReportedTotal > 0
+    ? Math.trunc(numericReportedTotal)
+    : 0;
+  let total = apiTotal || countedTotal;
+
+  if (hasBreakdown && total > countedTotal) {
+    counts.set("Other / Unranked", (counts.get("Other / Unranked") || 0) + (total - countedTotal));
+    countedTotal = total;
+  } else if (hasBreakdown && countedTotal > total) {
+    console.warn("NFTree rarity inventory exceeded the reported sale-pool total; using the reconciled rarity total.");
+    total = countedTotal;
+  }
+
+  return { counts, hasBreakdown, total };
+}
+
+function renderSalePoolRarityInventory(pools, reportedTotal) {
+  const { counts, hasBreakdown, total } = salePoolRarityInventory(pools, reportedTotal);
+
+  if (!hasBreakdown) {
+    return {
+      total,
+      markup: `
+        <article class="sale-pool-card sale-pool-rarity-card sale-pool-rarity-unavailable">
+          <div>
+            <span>Rarity inventory</span>
+            <strong>Temporarily unavailable</strong>
+          </div>
+          <small>The grand total above remains the latest available inventory count.</small>
+        </article>
+      `,
+    };
+  }
+
+  const extras = [...counts.keys()]
+    .filter((rarity) => !SALE_POOL_RARITY_ORDER.includes(rarity) && Number(counts.get(rarity) || 0) > 0)
+    .sort((left, right) => left.localeCompare(right));
+  const orderedRarities = [...SALE_POOL_RARITY_ORDER, ...extras];
+  const markup = orderedRarities
+    .map((rarity) => {
+      const count = Number(counts.get(rarity) || 0);
+      return `
+        <article class="sale-pool-card sale-pool-rarity-card" data-rarity="${escapeHtml(rarity)}">
+          <div>
+            <span>${escapeHtml(rarity)}</span>
+            <strong>${formatInteger(count)}</strong>
+          </div>
+          <small>available to mint</small>
+        </article>
+      `;
+    })
+    .join("");
+
+  return { markup, total };
 }
 
 function renderListingCard(listing) {
@@ -538,12 +605,20 @@ function applySalePools(payload, live = true) {
   };
   state.salePoolsLoaded = true;
 
-  elements.mintPoolCount.textContent = totalAvailable ? `${formatInteger(totalAvailable)} available` : "No pool inventory";
-  elements.salePoolCount.textContent = totalAvailable ? formatInteger(totalAvailable) : "0";
-  elements.activePoolLabel.textContent = activePool?.label || "No active pool";
-  elements.salePoolGrid.innerHTML = safePools.map((pool) => renderSalePoolCard(pool, activePool?.poolId || "")).join("");
-
   const priceLabel = formatMistAsSui(safePayload.mintPriceMist || MINT_PRICE_MIST);
+  const rarityInventory = renderSalePoolRarityInventory(safePools, totalAvailable);
+  const displayTotal = rarityInventory.total || totalAvailable;
+
+  if (elements.mintPoolCount) {
+    elements.mintPoolCount.textContent = displayTotal ? `${formatInteger(displayTotal)} available` : "No pool inventory";
+  }
+  if (elements.mintPriceLabel) elements.mintPriceLabel.textContent = priceLabel;
+  if (elements.salePoolCount) elements.salePoolCount.textContent = displayTotal ? formatInteger(displayTotal) : "0";
+  if (elements.activePoolLabel) elements.activePoolLabel.textContent = activePool?.label || "No active pool";
+  if (elements.salePoolGrid) {
+    elements.salePoolGrid.classList.add("sale-pool-rarity-grid");
+    elements.salePoolGrid.innerHTML = rarityInventory.markup;
+  }
   const poolHint = activePool
     ? `${activePool.label} ready | ${priceLabel} mint`
     : "No sale pool with inventory is available right now.";

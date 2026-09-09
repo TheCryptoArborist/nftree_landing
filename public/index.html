@@ -127,30 +127,32 @@
         <div class="acquisition-grid" id="mint" aria-label="NFTree buying options">
           <article class="acquisition-card accent" id="mintFlow" tabindex="-1">
             <span>Sales pool mint</span>
-            <h3>Mint from the active sale pool</h3>
+            <h3>Mint from the NFTree inventory</h3>
             <p>
-              This is the transaction path. Connect a wallet, review the active pool, then mint the next available
-              NFTree for 25 SUI.
+              Connect a wallet, review the live rarity mix, then mint the next available NFTree for 25 SUI.
             </p>
-            <div class="sale-pool-summary" aria-label="NFTree sale pool inventory">
+            <div class="sale-pool-summary" aria-label="NFTree mint inventory summary">
               <div>
-                <span>Sale pool inventory</span>
-                <strong id="mintPoolCount">Checking pools</strong>
+                <span>Available to mint</span>
+                <strong id="mintPoolCount">Checking inventory</strong>
               </div>
               <div>
+                <span>Mint price</span>
+                <strong id="mintPriceLabel">Loading</strong>
+              </div>
+              <div class="sale-pool-active-source" hidden>
                 <span>Active pool</span>
                 <strong id="activePoolLabel">Loading</strong>
               </div>
             </div>
-            <div class="sale-pool-grid" id="salePoolGrid" aria-label="Configured NFTree sale pools"></div>
-            <p class="referral-summary" id="referralSummary" aria-live="polite" hidden></p>
+            <div class="sale-pool-grid sale-pool-rarity-grid" id="salePoolGrid" aria-label="Rarity breakdown across all NFTree sales inventory" aria-live="polite"></div>
             <p class="wallet-balance-summary" id="walletBalanceSummary" aria-live="polite" hidden></p>
           </article>
           <aside class="acquisition-card listing-path-card" aria-label="NFTree listing path">
             <span>Browse listed NFTrees</span>
             <h3>Choose a visible NFTree on TradePort</h3>
             <p>Use listings when you want to inspect artwork, number, rarity, and listed price before buying.</p>
-            <div class="stats-grid compact" aria-label="NFTree listing stats">
+            <div class="stats-grid compact listing-market-stats" aria-label="NFTree listing stats">
               <div class="stat-card">
                 <span>Listed</span>
                 <strong id="listedCount">Loading</strong>
@@ -159,16 +161,8 @@
                 <span>Floor</span>
                 <strong id="floorPrice">Loading</strong>
               </div>
-              <div class="stat-card">
-                <span>Source</span>
-                <strong>TradePort</strong>
-              </div>
-              <div class="stat-card">
-                <span>Pool NFTs</span>
-                <strong id="salePoolCount">Loading</strong>
-              </div>
             </div>
-            <a class="button button-secondary" href="#listingGrid">Browse listings</a>
+            <a class="button button-secondary" href="https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items" rel="noreferrer" target="_blank">Browse on TradePort</a>
           </aside>
         </div>
 

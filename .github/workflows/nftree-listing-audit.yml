@@ -1,0 +1,129 @@
+name: NFTree listing audit
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-listings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Compare TradePort with the live NFTree feed
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFile } from "node:fs/promises";
+          import listingHandler from "./netlify/functions/nftree-listings.mjs";
+
+          const summarize = (payload, status = null) => {
+            const listings = Array.isArray(payload?.listings) ? payload.listings : [];
+            const newest = [...listings]
+              .filter((listing) => listing?.listedAt)
+              .sort((left, right) => Date.parse(right.listedAt) - Date.parse(left.listedAt))
+              .slice(0, 25)
+              .map((listing) => ({
+                nftreeNumber: listing.nftreeNumber ?? null,
+                name: listing.name || "",
+                priceLabel: listing.priceLabel || "",
+                listedAt: listing.listedAt || "",
+                nftObjectId: listing.nftObjectId || "",
+              }));
+
+            return {
+              httpStatus: status,
+              error: payload?.error || "",
+              count: Number(payload?.count ?? listings.length),
+              floorPrice: payload?.floorPrice || "",
+              fetchedAt: payload?.fetchedAt || "",
+              source: payload?.source || "",
+              newest,
+            };
+          };
+
+          const directResponse = await listingHandler(
+            new Request(`https://listing-audit.invalid/api/nftree-listings?audit=${Date.now()}`),
+          );
+          const directPayload = await directResponse.json();
+
+          let liveResponseStatus = null;
+          let livePayload = {};
+          try {
+            const liveResponse = await fetch(
+              `https://nftree.net/api/nftree-listings?audit=${Date.now()}`,
+              {
+                headers: {
+                  accept: "application/json",
+                  "cache-control": "no-cache",
+                  pragma: "no-cache",
+                },
+              },
+            );
+            liveResponseStatus = liveResponse.status;
+            livePayload = await liveResponse.json();
+          } catch (error) {
+            livePayload = { error: error instanceof Error ? error.message : String(error) };
+          }
+
+          const direct = summarize(directPayload, directResponse.status);
+          const live = summarize(livePayload, liveResponseStatus);
+          const directIds = new Set(
+            (directPayload.listings || []).map((listing) => String(listing.nftObjectId || "").toLowerCase()),
+          );
+          const liveIds = new Set(
+            (livePayload.listings || []).map((listing) => String(listing.nftObjectId || "").toLowerCase()),
+          );
+          const missingFromLive = [...directIds].filter((id) => id && !liveIds.has(id));
+          const extraOnLive = [...liveIds].filter((id) => id && !directIds.has(id));
+
+          const report = {
+            auditedAt: new Date().toISOString(),
+            directTradePortQuery: direct,
+            liveNftreeEndpoint: live,
+            comparison: {
+              countsMatch: direct.count === live.count,
+              missingFromLiveCount: missingFromLive.length,
+              extraOnLiveCount: extraOnLive.length,
+              missingFromLive,
+              extraOnLive,
+            },
+          };
+
+          console.log("NFTREE_LISTING_AUDIT_BEGIN");
+          console.log(JSON.stringify(report, null, 2));
+          console.log("NFTREE_LISTING_AUDIT_END");
+
+          await writeFile(
+            "listing-audit.json",
+            JSON.stringify({ report, directPayload, livePayload }, null, 2),
+          );
+
+          if (!directResponse.ok || direct.error) {
+            throw new Error(`Direct TradePort listing query failed: ${direct.error || directResponse.status}`);
+          }
+          if (liveResponseStatus !== 200 || live.error) {
+            throw new Error(`Live NFTree listing endpoint failed: ${live.error || liveResponseStatus}`);
+          }
+          NODE
+
+      - name: Upload audit details
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nftree-listing-audit
+          path: listing-audit.json
+          if-no-files-found: warn
+          retention-days: 1

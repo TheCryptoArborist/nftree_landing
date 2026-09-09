@@ -1,3 +1,11 @@
+.sale-pool-summary {
+  grid-template-columns: 1fr;
+}
+
+.sale-pool-summary > div:first-child {
+  display: none;
+}
+
 .sale-pool-grid.sale-pool-rarity-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }

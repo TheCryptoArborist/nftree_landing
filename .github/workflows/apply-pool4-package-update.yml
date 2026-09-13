@@ -1,0 +1,78 @@
+name: Apply NFTree Pool 4 deployment update
+
+on:
+  push:
+    branches:
+      - fix/pool4-package-20260913
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out deployment-fix branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/pool4-package-20260913
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply current package and Pool 4 configuration
+        run: node .github/scripts/apply-pool4-package-update.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild wallet bundle
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Validate deployment configuration and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          NEW_PACKAGE='0x79459345a7abde29c4763c97c65f8f48b9e9878dc077ea7ab57c0ad7d585c736'
+          OLD_PACKAGE='0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5'
+          POOL_4='0xfa7b71037b2a8a6bbe36b6cfbccca629f698c767aeb9dad603a0c655adf4de2a'
+          grep -q "$NEW_PACKAGE" netlify/functions/nftree-sale-pools.mjs public/app.js src/wallet-mint.js public/assets/nftree-wallet-mint.js netlify/functions/referral-core.mjs
+          grep -q "$POOL_4" netlify/functions/nftree-sale-pools.mjs public/app.js netlify/functions/referral-core.mjs
+          if grep -q "$OLD_PACKAGE" netlify/functions/nftree-sale-pools.mjs public/app.js src/wallet-mint.js public/assets/nftree-wallet-mint.js netlify/functions/referral-core.mjs; then
+            echo 'Retired package ID remains in an active deployment file.' >&2
+            exit 1
+          fi
+          if git diff --name-only | grep -q '^public/battle/'; then
+            echo 'Garden Battles files changed unexpectedly.' >&2
+            exit 1
+          fi
+
+      - name: Commit validated deployment fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "TheCryptoArborist"
+          git config user.email "190985450+TheCryptoArborist@users.noreply.github.com"
+          git add \
+            netlify/functions/nftree-sale-pools.mjs \
+            netlify/functions/referral-core.mjs \
+            public/app.js \
+            src/wallet-mint.js \
+            public/assets/nftree-wallet-mint.js \
+            test/deployment-config.test.mjs
+          git rm .github/scripts/apply-pool4-package-update.mjs
+          git rm .github/workflows/apply-pool4-package-update.yml
+          git commit -m "Update NFTree package and add Pool 4"
+          git push origin HEAD:fix/pool4-package-20260913

@@ -6,7 +6,7 @@ const API_URL = "/api/nftree-listings";
 const SALE_POOL_API_URL = "/api/nftree-sale-pools";
 const COLLECTION_URL =
   "https://www.tradeport.xyz/sui/collection/0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705::collection::NFT?tab=items";
-const LATEST_PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5";
+const LATEST_PACKAGE_ID = "0x79459345a7abde29c4763c97c65f8f48b9e9878dc077ea7ab57c0ad7d585c736";
 const MINT_CONFIG_ID = "0xe83616020f61f73b30c40fd3f888ed397626afd071bd4666374c306d8e98b06b";
 const MINT_PRICE_MIST = "25000000000";
 const GAS_WARNING_BUFFER_MIST = "100000000";
@@ -66,33 +66,33 @@ const fallbackSalePoolStatus = {
   mintConfigId: MINT_CONFIG_ID,
   mintPriceMist: MINT_PRICE_MIST,
   treasury: "0x956624f2fbbdf16bb5e334b550efd975ff7677e34bbd4e18cb6f485756af6c08",
-  totalAvailable: 1890,
+  totalAvailable: 3515,
   activePoolLabel: "Pool 1",
   activePoolId: "0x8cb91464eec7ada1af801a439207647d78de66bc0d4f124d6437091745a0163a",
   pools: [
     {
       label: "Pool 1",
-      description: "Original sale pool",
+      description: "Primary NFTree sale pool",
       poolId: "0x8cb91464eec7ada1af801a439207647d78de66bc0d4f124d6437091745a0163a",
-      count: 1081,
-      firstNumber: 8,
-      lastNumber: 1219,
+      count: 1072,
     },
     {
       label: "Pool 2",
-      description: "Active expansion pool",
+      description: "NFTree sale pool",
       poolId: "0xedd6b2d96968197bc121ad7bed064a43b5ad7d84cbb8b7c00d8fd78bea3e2e4d",
-      count: 780,
-      firstNumber: 1220,
-      lastNumber: 1999,
+      count: 863,
     },
     {
       label: "Pool 3",
-      description: "Overflow pool for Tree NFT #1268-#1298",
+      description: "NFTree sale pool",
       poolId: "0xed43f2ffb52ef542ea2cfccd0358431923460fec8ef659febda111614e20457a",
-      count: 29,
-      firstNumber: 1268,
-      lastNumber: 1298,
+      count: 900,
+    },
+    {
+      label: "Pool 4",
+      description: "Current NFTree expansion pool",
+      poolId: "0xfa7b71037b2a8a6bbe36b6cfbccca629f698c767aeb9dad603a0c655adf4de2a",
+      count: 680,
     },
   ],
   source: "last-verified",

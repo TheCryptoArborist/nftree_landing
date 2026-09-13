@@ -4,8 +4,9 @@ export const ELIGIBLE_POOLS = new Set([
   "0x8cb91464eec7ada1af801a439207647d78de66bc0d4f124d6437091745a0163a",
   "0xedd6b2d96968197bc121ad7bed064a43b5ad7d84cbb8b7c00d8fd78bea3e2e4d",
   "0xed43f2ffb52ef542ea2cfccd0358431923460fec8ef659febda111614e20457a",
+  "0xfa7b71037b2a8a6bbe36b6cfbccca629f698c767aeb9dad603a0c655adf4de2a",
 ]);
-export const PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5";
+export const PACKAGE_ID = "0x79459345a7abde29c4763c97c65f8f48b9e9878dc077ea7ab57c0ad7d585c736";
 const normalize = (value) => String(value || "").toLowerCase();
 export const CHALLENGE_MAX_AGE_MS = 10 * 60 * 1000;
 // Pending claims are retried for a bounded period in the browser. Retain the

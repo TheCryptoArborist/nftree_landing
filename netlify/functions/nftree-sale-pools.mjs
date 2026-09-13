@@ -4,7 +4,7 @@ const SUI_FULLNODE_URL =
   process.env.SUI_GRPC_URL || process.env.SUI_RPC_URL || "https://fullnode.mainnet.sui.io:443";
 
 const COLLECTION_PACKAGE_ID = "0xf6c6d439ea0da2f3e9ba79e4992a7a4c113215fbf54c442ac9020c315f953705";
-const LATEST_PACKAGE_ID = "0xcfb2af9a22d5a468f15e673c3ec40c76be8da3ec69c66405d832bb4d6985cdf5";
+const LATEST_PACKAGE_ID = "0x79459345a7abde29c4763c97c65f8f48b9e9878dc077ea7ab57c0ad7d585c736";
 const MINT_CONFIG_ID = "0xe83616020f61f73b30c40fd3f888ed397626afd071bd4666374c306d8e98b06b";
 const FALLBACK_MINT_PRICE_MIST = "25000000000";
 const FALLBACK_TREASURY =
@@ -25,6 +25,11 @@ const SALE_POOLS = [
     label: "Pool 3",
     description: "Overflow pool for Tree NFT #1268-#1298",
     poolId: "0xed43f2ffb52ef542ea2cfccd0358431923460fec8ef659febda111614e20457a",
+  },
+  {
+    label: "Pool 4",
+    description: "Current NFTree expansion pool",
+    poolId: "0xfa7b71037b2a8a6bbe36b6cfbccca629f698c767aeb9dad603a0c655adf4de2a",
   },
 ];
 

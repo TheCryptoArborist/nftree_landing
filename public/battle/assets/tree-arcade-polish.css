@@ -1,0 +1,150 @@
+/* TREE Arcade visual continuity. Presentation only: preserve battle layouts,
+   state classes, disabled controls, wallet flows, and all game artwork. */
+.gb-battle-page {
+  --gb-tree-green: #c5e64c;
+  --gb-tree-green-soft: #e0efab;
+  --gb-gold: #f1cd65;
+  --gb-text: #f4f5ff;
+  --gb-text-muted: #b8c6ac;
+  --gb-border-glow: rgba(197, 230, 76, .3);
+  --gb-shadow-green: rgba(197, 230, 76, .12);
+  --arcade-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--arcade-sans) !important;
+  color: #f4f5ff !important;
+  background-color: #07110e !important;
+  background-image: radial-gradient(ellipse at 50% 0, #34552126, transparent 45%),
+    linear-gradient(#07120ed9, #080f0df2), url('/battle/assets/background4.jpg') !important;
+}
+.gb-battle-page .gb-app-header {
+  background: #07110ef5;
+  border-bottom: 1px solid #a9984b40;
+  box-shadow: 0 8px 24px #0003;
+}
+.gb-battle-page .gb-nav-link,
+.gb-battle-page .gb-mobile-menu-toggle {
+  font-family: var(--arcade-sans);
+  color: #d6dfd0;
+  border-color: #a9984b40;
+  background: #111e17;
+  box-shadow: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+.gb-battle-page .gb-nav-link-arcade {
+  color: #f1cd65;
+  border-color: #f1cd6570;
+  background: #f1cd6510;
+}
+.gb-battle-page .gb-nav-link:hover,
+.gb-battle-page .gb-mobile-menu-toggle:hover {
+  color: #f4f5ff;
+  background: #233020;
+  border-color: #c5e64c80;
+}
+.gb-battle-page .gb-mobile-nav-panel { background: #0b1712; border-color: #a9984b40; }
+.gb-battle-page .gb-dedicated-mode-heading,
+.gb-battle-page .gb-player-record-card,
+.gb-battle-page .gb-tree-status-card,
+.gb-battle-page .gb-active-mode-bar {
+  background: linear-gradient(135deg, #182719f2, #09150ff5);
+  border-color: #a9984b59;
+  box-shadow: 0 8px 28px #0003, inset 0 1px 0 #f1cd650c;
+  border-radius: 10px;
+}
+.gb-battle-page .gb-dedicated-mode-heading {
+  border-top: 2px solid #c5e64c88;
+}
+.gb-battle-page .gb-dedicated-mode-copy h1 {
+  color: #f1e4b2;
+  font-family: var(--arcade-sans);
+  font-weight: 950;
+  letter-spacing: -.035em;
+  text-shadow: 0 2px 0 #372c17;
+}
+.gb-battle-page .gb-dedicated-mode-copy p,
+.gb-battle-page .gb-active-mode-copy span,
+.gb-battle-page .gb-rank-showcase-copy strong {
+  font-family: var(--arcade-sans);
+  color: #c0cbb5;
+  line-height: 1.55;
+}
+.gb-battle-page .gb-dedicated-mode-copy > small,
+.gb-battle-page .gb-rank-showcase-copy > span {
+  color: #f1cd65;
+  font-family: "Lucida Console", "Courier New", monospace;
+  letter-spacing: .1em;
+}
+.gb-battle-page .gb-mode-action-bot {
+  background: linear-gradient(180deg, #d2ed75, #bddb45);
+  border-color: #e0efab;
+  color: #102315;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px #0004;
+  font-family: var(--arcade-sans);
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+.gb-battle-page .gb-mode-action-bot:hover:not(:disabled) {
+  background: #def39a;
+  box-shadow: 0 5px 20px #c5e64c26;
+}
+.gb-battle-page .gb-tree-benefits-trigger-featured {
+  background: linear-gradient(110deg, #26351ce8, #12241bf5);
+  border-color: #c5e64c66;
+  box-shadow: 0 4px 18px #0003;
+}
+.gb-battle-page .gb-tree-benefits-trigger strong { color: #e0efab; }
+.gb-battle-page .gb-tree-benefits-trigger small { color: #c0cbb5; }
+.gb-battle-page .gb-card-guide-launcher,
+.gb-battle-page .gb-how-to-play-trigger,
+.gb-battle-page .gb-practice-launcher,
+.gb-battle-page .gb-mode-action-practice {
+  font-family: var(--arcade-sans);
+  background: linear-gradient(135deg, #18291f, #102018);
+  border-color: #a9984b59;
+  box-shadow: 0 3px 14px #0003;
+  border-radius: 8px;
+}
+.gb-battle-page .gb-card-guide-launcher strong { color: #f1cd65; }
+.gb-battle-page .gb-card-guide-launcher small { color: #b8c6ac; }
+.gb-battle-page :is(button, a):focus-visible {
+  outline: 3px solid #fff1ac;
+  outline-offset: 3px;
+}
+/* Status/result dialogs are rendered outside the page's visual shell. */
+[data-testid="dialog-content"] {
+  background: linear-gradient(145deg, #1a2b1c, #09150f) !important;
+  border: 1px solid #c5e64c88 !important;
+  box-shadow: 0 24px 70px #0009, 0 0 24px #c5e64c12 !important;
+  color: #f4f5ff;
+}
+[data-testid="dialog-message"],
+[data-testid="dialog-pending-note"],
+[data-testid="button-close-dialog"] {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
+  line-height: 1.5;
+}
+[data-testid="dialog-pending-note"] { color: #b8c6ac !important; }
+[data-testid="button-close-dialog"] {
+  background: #c5e64c !important;
+  border: 1px solid #e0efab !important;
+  color: #102315 !important;
+  box-shadow: none !important;
+  font-weight: 800;
+}
+[data-testid="button-close-dialog"]:hover { background: #def39a !important; }
+[data-testid="button-close-dialog"]:focus-visible { outline: 3px solid #fff1ac; outline-offset: 4px; }
+.gb-battle-page footer {
+  background: #07110ef2 !important;
+  border-top: 1px solid #a9984b40 !important;
+  box-shadow: none !important;
+  font-family: var(--arcade-sans);
+}
+.gb-battle-page footer a { color: #f1cd65 !important; text-shadow: none !important; }
+.gb-battle-page footer > div { color: #b8c6ac !important; }
+@media (prefers-reduced-motion: reduce) {
+  .gb-battle-page .gb-mode-action-bot,
+  .gb-battle-page .gb-nav-link { transition: none; }
+}

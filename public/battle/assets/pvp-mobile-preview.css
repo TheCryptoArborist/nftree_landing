@@ -1,0 +1,22 @@
+/* Loaded only by /battle/pvp-preview. Reuse accepted phone layout and dialogs. */
+@import url("./garden-bot-preview-onboarding.css");
+@import url("./garden-bot-preview-compact-game.css");
+@import url("./garden-bot-preview-mobile-polish.css");
+@import url("./garden-bot-social-card.css");
+.pvp-preview-notice { padding: 8px; background: #12352b; color: #d8fff0; text-align: center; font: 13px/1.4 Arial,sans-serif; }
+body:has(.gb-battle-page-active) .pvp-preview-notice { display: none; }
+@media (max-width: 640px) {
+  .gb-pvp-queue-panel { padding: 12px !important; margin: 10px 0 !important; gap: 12px; }
+  .gb-pvp-queue-copy, .gb-pvp-queue-actions { min-width: 0; width: 100%; }
+  .gb-pvp-queue-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .gb-pvp-queue-facts span { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+  .gb-pvp-queue-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .gb-pvp-queue-actions > * { min-height: 44px; flex: 1 1 130px; }
+  /* Financial match details must remain available in PvP's compact HUD. */
+  .gb-battle-page-active .gb-match-status-bar { flex-wrap: wrap; }
+  .gb-battle-page-active .gb-match-terms-details { display: block !important; flex: 1 0 100%; font-size: 11px; }
+  .gb-battle-page-active .gb-match-terms-details > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+  .gb-battle-page-active .gb-match-terms-details[open] > dl { position: absolute; z-index: 80; background: #031c1b; border: 1px solid #51ed9c; border-radius: 8px; padding: 12px; max-width: calc(100vw - 40px); max-height: 55dvh; overflow: auto; }
+  .gb-battle-page-active .gb-match-status-bar { position: relative; }
+  .gb-battle-page-active .gb-battle-secondary-controls button { min-height: 44px; }
+}

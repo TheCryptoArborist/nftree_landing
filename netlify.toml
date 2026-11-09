@@ -70,6 +70,16 @@
   status = 200
 
 [[redirects]]
+  from = "/battle/pvp-preview"
+  to = "/battle/pvp-preview/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/battle/pvp-preview/"
+  to = "/battle/pvp-preview/index.html"
+  status = 200
+
+[[redirects]]
   from = "/battle/*"
   to = "/battle/index.html"
   status = 200

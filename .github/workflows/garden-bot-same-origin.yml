@@ -16,6 +16,10 @@ on:
       - "scripts/qa-garden-bot-mobile-polish.mjs"
       - "scripts/qa-garden-bot-mobile-ranks.mjs"
       - "scripts/qa-garden-bot-social-card.mjs"
+      - "scripts/qa-pvp-mobile.mjs"
+      - "scripts/pvp-mobile-patches.mjs"
+      - "scripts/build-pvp-mobile-preview.mjs"
+      - "test/pvp-mobile-preview.test.mjs"
       - "test/garden-bot-mobile-ranks.test.mjs"
       - ".github/workflows/garden-bot-same-origin.yml"
 
@@ -70,6 +74,8 @@ jobs:
         run: node scripts/qa-garden-bot-mobile-ranks.mjs
       - name: Verify actual result card rendering and share behavior at four phone sizes
         run: node scripts/qa-garden-bot-social-card.mjs
+      - name: Verify isolated PvP mobile UI with simulated wallet callbacks
+        run: node scripts/qa-pvp-mobile.mjs
       - name: Save screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -81,4 +87,5 @@ jobs:
             qa-garden-bot-polish/
             qa-garden-bot-ranks/
             qa-garden-bot-social/
+            qa-pvp-mobile/
           if-no-files-found: warn

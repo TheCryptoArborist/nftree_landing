@@ -1,0 +1,44 @@
+name: Garden Bot startup regression checks
+on:
+  push:
+    branches:
+      - fix/garden-bot-random-init-20261109
+  pull_request:
+    paths:
+      - 'public/battle/**'
+      - 'test/garden-bot-random-init.test.mjs'
+      - '.github/workflows/garden-bot-start-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: NFTree full regression suite
+        run: npm test
+      - name: NFTree lint and syntax checks
+        run: npm run lint
+      - name: NFTree complete production build (no deploy)
+        run: npm run build
+      - name: Verify essential pages and existing Garden Battles bundle
+        run: |
+          test -f public/index.html
+          test -f public/app.js
+          test -f public/r/mischief-finance/index.html
+          test -f netlify/functions/nftree-listings.mjs
+          test -f netlify/functions/nftree-sale-pools.mjs
+          test -f public/battle/index.html
+          test -f public/battle/trials/index.html
+          test -f public/battle/leaderboard/index.html
+          grep -q 'index-BKkC2woN.js' public/battle/index.html
+          echo "Required NFTree and Garden Battles routes present. No production deploy."

@@ -11,7 +11,8 @@ const bundle = fs.readFileSync("public/battle/assets/garden-bot-same-origin-prev
 const mount = 'xj(document.getElementById("root")).render(a.jsx(QQ,{}));';
 assert.equal(bundle.split(mount).length, 2, "QA must replace exactly one app mount");
 const fixtureMount = `
-const qaImage=new URLSearchParams(location.search).has("broken")?"/missing-art.png":"/battle/assets/battle-trees/player-stage-4.png";
+const qaParams=new URLSearchParams(location.search);
+const qaImage=qaParams.has("broken")?"/battle/assets/missing-art.png":qaParams.has("remote")?"https://example.invalid/nft.png":"/battle/assets/battle-trees/player-stage-4.png";
 xj(document.getElementById("root")).render(a.jsx(TY,{
  open:true,title:"You Win!",score:"Final score: 57/50 vs 18/50",summary:"57 / 50 Growth reached.",
  imageUrl:qaImage,imageAlt:"Player growth stage 4",shareOptions:[{id:"victory",title:"Victory",message:"I won 57–18!"}],
@@ -81,6 +82,12 @@ try {
     // Ensure the new card doesn't make the existing bottom actions unreachable.
     await page.getByRole("button", { name: "Play Again", exact: true }).click();
     assert.deepEqual(errors, []);
+    // Winning modal may reveal external NFT art; the card must still work.
+    await page.route("https://example.invalid/**", route => route.abort());
+    await page.goto(origin + "/__qa-result?remote=1");
+    await page.getByRole("region", { name: "Social result card" }).locator("img").waitFor();
+    await page.getByRole("button", { name: "Share Card", exact: true }).click();
+    assert.equal(await page.evaluate(() => window.qaShares.length), 1);
     await page.goto(origin + "/__qa-result?broken=1");
     await page.getByRole("alert").filter({ hasText: "Battle artwork could not load" }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Share Card", exact: true }).count(), 0);

@@ -36,17 +36,28 @@ export function drawSocialCard(canvas, { title, score, image = null }) {
   return canvas;
 }
 
+export function resolveCardArtwork(url, baseUrl) {
+  if (!url) return null;
+  const base = new URL(baseUrl);
+  const fallback = new URL("/battle/assets/battle-trees/player-stage-4.png", base).href;
+  try {
+    const resolved = new URL(url, base);
+    // A winning result may reveal a remote NFT in the modal. Until NFT artwork
+    // is supported, use a shipped illustration on the card instead of failing.
+    return resolved.origin === base.origin && resolved.pathname.startsWith("/battle/assets/")
+      ? resolved.href : fallback;
+  } catch { return fallback; }
+}
+
 async function loadArtwork(url) {
   if (!url) return null;
-  const resolved = new URL(url, window.location.href);
-  // This first version uses only shipped battle art, never unverified remote NFTs.
-  if (resolved.origin !== window.location.origin) throw new Error("Battle artwork must load from this site.");
+  const resolved = resolveCardArtwork(url, window.location.href);
   return new Promise((resolve, reject) => {
     const image = new Image();
     const timer = setTimeout(() => { image.src = ""; reject(new Error("Battle artwork timed out.")); }, 10000);
     image.onload = () => { clearTimeout(timer); resolve(image); };
     image.onerror = () => { clearTimeout(timer); reject(new Error("Battle artwork could not load.")); };
-    image.src = resolved.href;
+    image.src = resolved;
   });
 }
 

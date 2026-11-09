@@ -1,6 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { drawSocialCard, WEBSITE } from "../public/battle/assets/garden-bot-social-card.js";
+import { drawSocialCard, WEBSITE, resolveCardArtwork } from "../public/battle/assets/garden-bot-social-card.js";
+
+test("winning remote NFT reveal uses shipped card art without fetching the NFT", () => {
+  const base = "https://nftree.net/battle/garden-bot-preview/";
+  const fallback = "https://nftree.net/battle/assets/battle-trees/player-stage-4.png";
+  for (const url of ["https://nfts.example/tree.png", "ipfs://art/tree", "data:image/png;base64,AAAA", "https://nftree.net/api/anything"]) {
+    assert.equal(resolveCardArtwork(url, base), fallback);
+  }
+  assert.equal(resolveCardArtwork("/battle/assets/battle-trees/player-stage-2.png", base), "https://nftree.net/battle/assets/battle-trees/player-stage-2.png");
+  assert.equal(resolveCardArtwork(null, base), null);
+});
 
 function recordingCanvas() {
   const calls = [];

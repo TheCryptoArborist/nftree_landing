@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="stylesheet" href="/battle/assets/index-trdY-Mq5.css">
+<link rel="stylesheet" href="/battle/assets/garden-bot-preview-onboarding.css">
+<link rel="stylesheet" href="/battle/assets/garden-bot-preview-compact-game.css">
+<title>Garden Bot compact five-card layout fixture — testing only</title>
+<style>
+*{box-sizing:border-box} html,body,#root{margin:0;padding:0}
+.gb-header-actions button{min-height:38px;background:#143a32;border:1px solid #47ce88;color:#e5fff7;border-radius:8px;padding:5px;font-family:Orbitron,sans-serif}
+</style>
+</head>
+<body><div id="root">
+<div class="gb-battle-page gb-battle-page-active" style="background:#031314;min-height:100vh;color:white;font-family:Orbitron,sans-serif">
+ <header class="gb-app-header">
+  <div class="gb-header-brand"><img class="gb-header-game-logo" src="/battle/assets/garden.png" alt="Garden Battles"></div>
+  <div class="gb-header-actions"><button>0x18d7...35d6</button><button class="gb-mobile-menu-toggle" aria-label="Open menu">☰</button></div>
+ </header>
+ <section class="gb-player-status-strip"><h2>Player Profile</h2></section>
+ <main class="gb-battle-main">
+  <section class="gb-dedicated-mode-heading"><h1>Garden Bot</h1></section>
+  <section class="gb-battle-hud"><div class="gb-battle-hud-center">
+   <aside class="gb-match-status-bar" aria-label="Current match status">
+    <div class="gb-match-status-summary"><span>Garden Bot Match</span><strong>First to 50 Growth</strong></div>
+    <div class="gb-match-status-live" role="status"><span></span><strong>Your turn</strong></div>
+    <details class="gb-match-terms-details"><summary>View match details</summary></details>
+   </aside>
+   <section class="gb-battle-arena" aria-label="Current battle arena"><div class="battle-grid">
+    <div class="player-card" style="display:flex;flex-direction:column;align-items:center;width:100%;max-width:280px">
+     <div class="gb-battle-slot-label" style="padding:5px 12px;margin-bottom:8px;font-size:13px;border:1px solid #00ffcc">YOU</div>
+     <div class="gb-battle-tree-portrait" style="width:100%;aspect-ratio:5/7;max-width:240px;margin-bottom:10px;display:flex;align-items:center;justify-content:center"><img class="growth-stage-art" src="/battle/assets/battle-trees/player-stage-1.png" alt="Player tree" style="width:94%;height:94%;object-fit:contain"/></div>
+     <p style="margin-top:4px;font-size:13px">Your Growth</p>
+     <div style="height:18px;padding:2px;background:black;width:100%"><div data-testid="health-bar-player" style="height:18px;width:32%;background:lime"></div></div>
+     <p data-testid="text-growth-player" style="font-size:17px;margin-top:4px">16 / 50</p>
+    </div>
+    <div class="vs-element" style="font-size:48px;min-width:60px;min-height:60px;display:flex;align-items:center;justify-content:center">VS</div>
+    <div class="opponent-card" style="display:flex;flex-direction:column;align-items:center;width:100%;max-width:280px">
+     <div class="gb-battle-slot-label" style="padding:5px 12px;margin-bottom:8px;font-size:13px;border:1px solid #ff9944">GARDEN BOT</div>
+     <div class="gb-battle-tree-portrait" style="width:100%;aspect-ratio:5/7;max-width:240px;margin-bottom:10px;display:flex;align-items:center;justify-content:center"><img class="growth-stage-art" src="/battle/assets/battle-trees/garden-bot-stage-1.png" alt="Garden Bot tree" style="width:94%;height:94%;object-fit:contain"/></div>
+     <p style="margin-top:4px;font-size:13px">Garden Bot Growth</p>
+     <div style="height:18px;padding:2px;background:black;width:100%"><div data-testid="health-bar-opponent" style="height:18px;width:22%;background:orange"></div></div>
+     <p data-testid="text-growth-opponent" style="font-size:17px;margin-top:4px">11 / 50</p>
+    </div>
+   </div></section>
+   <div class="gb-battle-options" data-testid="battle-options">
+    <div class="gb-turn-command" role="status"><span>Your turn</span><strong>Choose your next move</strong></div>
+    <div class="gb-last-opponent-move"><span>Garden Bot used Thorn Strike: -5 Growth</span></div>
+    <div class="gb-hand-toolbar"><span><small>Your Hand</small><strong>2 Attack · 1 Growth · 1 Hybrid · Bonus</strong></span><button>Card Guide</button></div>
+    <div class="gb-move-card-grid" role="group" aria-label="Available cards">
+     <button class="gb-battle-move-card" style="background:rgba(80,0,0,.75);border:2px solid #f66;padding:12px 10px"><span class="gb-move-face gb-move-face-attack"><span class="gb-move-face-visual"><img class="gb-move-face-icon" src="/battle/assets/card-icons/v13/16-pruning-fury.png" alt=""></span><span class="gb-move-face-copy"><span class="gb-move-face-badges"><span>Attack</span></span><strong>Pruning Fury</strong><small>Spends 4 Growth to drain 16. Requires at least 4 Growth.</small></span></span></button>
+     <button class="gb-battle-move-card" style="background:rgba(0,80,30,.75);border:2px solid #00ff88;padding:12px 10px"><span class="gb-move-face gb-move-face-growth"><span class="gb-move-face-visual"><img class="gb-move-face-icon" src="/battle/assets/card-icons/v13/28-sap-surge.png" alt=""></span><span class="gb-move-face-copy"><span class="gb-move-face-badges"><span>Growth</span><span>Conditional</span></span><strong>Sap Surge</strong><small>Gains 13 at 10 Growth or below; otherwise gains 10.</small></span></span></button>
+     <button class="gb-battle-move-card" style="background:rgba(80,40,0,.75);border:2px solid #ffaa33;padding:12px 10px"><span class="gb-move-face gb-move-face-hybrid"><span class="gb-move-face-visual"><img class="gb-move-face-icon" src="/battle/assets/card-icons/v13/08-barklash-shield.png" alt=""></span><span class="gb-move-face-copy"><span class="gb-move-face-badges"><span>Hybrid</span><span>Guard</span></span><strong>Barklash Shield</strong><small>Gains 6 Growth and blocks the next hit; a fresh shield reflects 4.</small></span></span></button>
+     <button class="gb-battle-move-card" style="background:rgba(80,0,0,.75);border:2px solid #f66;padding:12px 10px"><span class="gb-move-face gb-move-face-attack"><span class="gb-move-face-visual"><img class="gb-move-face-icon" src="/battle/assets/card-icons/v13/13-fungal-doom.png" alt=""></span><span class="gb-move-face-copy"><span class="gb-move-face-badges"><span>Attack</span><span>Status</span></span><strong>Fungal Doom</strong><small>Drains 7 now and 4 more on the opponent's next turn.</small></span></span></button>
+     <button class="gb-battle-move-card gb-battle-move-card-fifth" style="background:rgba(0,80,30,.75);border:3px solid #ffe48a;padding:12px 10px"><span class="gb-fifth-move-card-ribbon">Your Bonus Fifth Move</span><span class="gb-move-face gb-move-face-growth"><span class="gb-move-face-visual"><img class="gb-move-face-icon" src="/battle/assets/card-icons/v13/35-canopy-explosion.png" alt=""></span><span class="gb-move-face-copy"><span class="gb-move-face-badges"><span>TREE Power</span><span>Guard</span></span><strong>Canopy Explosion</strong><small>Removes one opponent block and gains 10 Growth.</small></span></span></button>
+    </div>
+    <div class="gb-free-bot-reroll"><strong>Free Garden Bot Reroll</strong><button>Reroll Four Cards Free</button></div>
+    <div class="gb-battle-secondary-controls"><button>Forfeit Battle</button></div>
+    <div class="gb-battle-log-panel"><div>Battle Log</div></div>
+   </div>
+  </div></section>
+ </main>
+ <footer>Powered by TREE</footer>
+</div>
+</div>
+<script>
+document.querySelectorAll(".gb-battle-move-card").forEach(button => button.addEventListener("click", () => {
+ const el=document.querySelector('[data-testid="text-growth-player"]');
+ el.textContent="24 / 50";
+}));
+</script>
+</body></html>

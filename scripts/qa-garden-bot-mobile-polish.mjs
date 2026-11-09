@@ -67,7 +67,7 @@ for(const size of samples){
     if(m.scrollWidth>size.width+1)throw Error("Battle document horizontal overflow");
     if(m.scrollHeight>size.height+2)throw Error("Battle document scroll remains");
     if(m.cardCount!==5)throw Error("Missing five cards");
-    if(m.cards.some(r=>r.bottom>size.height+1||r.top<0||r.height<44))throw Error("Card offscreen or too small");
+    if(m.cards.some(r=>r.bottom>size.height+1||r.top<0||r.height<44))throw Error("Card offscreen or too small: "+JSON.stringify(m));
     if(m.arena.bottom>m.cards[0].top||m.arena.top<0)throw Error("Arena overlaps cards");
     if(m.step2JumpDisplay!=="none")throw Error("Redundant Step 2 button still visible");
     if(m.rerollDisplay!=="grid")throw Error("Reroll did not use compact row");

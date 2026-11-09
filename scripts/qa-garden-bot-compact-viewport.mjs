@@ -54,6 +54,7 @@ for(const {width,height} of sizes){
     playerGrowth:get('[data-testid="text-growth-player"]')?.innerText,
     botGrowth:get('[data-testid="text-growth-opponent"]')?.innerText,
     optionsScrollable:get(".gb-battle-options").scrollHeight>get(".gb-battle-options").clientHeight,
+    optionChildren:[...get(".gb-battle-options").children].map(c=>({className:c.className,display:getComputedStyle(c).display,order:getComputedStyle(c).order,...rect(c)})),
     optionChildren:[...get(".gb-battle-options").children].map(e=>({className:e.className,order:getComputedStyle(e).order,display:getComputedStyle(e).display,scrollHeight:e.scrollHeight,rect:rect(e)})),
     bodyClass:get(".gb-battle-page-active")?.className,
    };

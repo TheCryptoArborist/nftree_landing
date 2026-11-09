@@ -25,7 +25,7 @@ body:has(.gb-battle-page-active) .pvp-preview-notice { display: none; }
 @media (max-width: 640px) and (max-height: 630px) {
   .gb-battle-page-active .gb-match-status-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px; padding: 2px 4px !important; }
   .gb-battle-page-active .gb-match-status-live { max-width: none; }
-  .gb-battle-page-active .gb-match-terms-details { width: 86px; }
+  .gb-battle-page-active .gb-match-terms-details { width: 86px; grid-column: auto; }
   .gb-battle-page-active .gb-match-terms-details > summary { box-sizing: border-box; width: 86px; padding: 4px; font-size: 8px; white-space: normal; text-align: center; justify-content: center; }
-  .gb-battle-page-active .gb-match-terms-details[open] > dl { left: 0; top: 100%; }
+  .gb-battle-page-active .gb-match-terms-details[open] > dl { left: auto; right: 0; top: 100%; width: calc(100vw - 32px); }
 }

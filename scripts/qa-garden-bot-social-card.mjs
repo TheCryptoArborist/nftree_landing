@@ -15,7 +15,10 @@ const qaParams=new URLSearchParams(location.search);
 const qaImage=qaParams.has("broken")?"/battle/assets/missing-art.png":qaParams.has("remote")?"https://example.invalid/nft.png":"/battle/assets/battle-trees/player-stage-4.png";
 xj(document.getElementById("root")).render(a.jsx(TY,{
  open:true,title:"You Win!",score:"Final score: 57/50 vs 18/50",summary:"57 / 50 Growth reached.",
- imageUrl:qaImage,imageAlt:"Player growth stage 4",shareOptions:[{id:"victory",title:"Victory",message:"I won 57–18!"}],
+ imageUrl:qaImage,imageAlt:"Player growth stage 4",
+ nftIdentity:qaParams.has("personalized")?{name:"Tree NFT #300",imageUrl:"https://example.invalid/personalized.png"}:null,
+ identityStatus:qaParams.has("personalized")?"ready":"unavailable",
+ shareOptions:[{id:"victory",title:"Victory",message:"I won 57–18!"}],
  selectedShareOptionId:"victory",xShareUrl:"#",smsShareUrl:"#",facebookShareUrl:"#",leaderboardUrl:"#",
  canPlayAgain:true,onSelectShareOption:()=>{},onShare:()=>{},onCopy:()=>{},onClose:()=>{},onPlayAgain:()=>{}
 }));`;
@@ -88,6 +91,22 @@ try {
     await page.getByRole("region", { name: "Social result card" }).locator("img").waitFor();
     await page.getByRole("button", { name: "Share Card", exact: true }).click();
     assert.equal(await page.evaluate(() => window.qaShares.length), 1);
+    // Actual NFT artwork is read anonymously through CORS and drawn on the PNG.
+    await page.route("https://example.invalid/personalized.png", route => route.fulfill({
+      status: 200, headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "image/png" },
+      body: fs.readFileSync("public/battle/assets/battle-trees/player-stage-4.png"),
+    }));
+    await page.goto(origin + "/__qa-result?personalized=1");
+    await page.getByRole("img", { name: /Tree NFT #300/ }).waitFor();
+    await page.getByRole("button", { name: "Share Card", exact: true }).click();
+    assert.equal(await page.evaluate(() => window.qaShares.length), 1);
+    await page.screenshot({ path: `qa-garden-bot-social/personalized-${width}.png` });
+    await page.route("https://example.invalid/personalized.png", route => route.abort());
+    await page.goto(origin + "/__qa-result?personalized=1");
+    await page.getByRole("button", { name: "Use Battle Artwork" }).waitFor();
+    await page.getByRole("button", { name: "Use Battle Artwork" }).click();
+    await page.getByRole("button", { name: "Share Card", exact: true }).waitFor();
+    assert.match(await page.getByRole("region", { name: "Social result card" }).locator("img").getAttribute("alt"), /Battle artwork/);
     await page.goto(origin + "/__qa-result?broken=1");
     await page.getByRole("alert").filter({ hasText: "Battle artwork could not load" }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Share Card", exact: true }).count(), 0);

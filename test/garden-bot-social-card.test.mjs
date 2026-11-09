@@ -41,6 +41,14 @@ test("landscape art is contained without cropping or stretching", () => {
   assert.deepEqual(calls.find(c => c[0] === "drawImage"), ["drawImage", image, 260, 370, 560, 280]);
 });
 
+test("personalized card identifies the actual NFTree instead of labeling it generic artwork", () => {
+  const { canvas, calls } = recordingCanvas();
+  drawSocialCard(canvas, { title: "You Win!", score: "57 vs 18", image: { width: 400, height: 800 }, nftName: "Tree NFT #300" });
+  assert.ok(calls.some(c => c[0] === "fillText" && c[1] === "YOUR NFTREE • Tree NFT #300"));
+  assert.ok(calls.some(c => c[0] === "fillText" && c[1] === WEBSITE));
+  assert.equal(calls.some(c => c[0] === "fillText" && c[1] === "BATTLE ARTWORK • GARDEN BOT"), false);
+});
+
 test("missing artwork uses an explicit battle illustration fallback; invalid dimensions fail", () => {
   const { canvas, calls } = recordingCanvas();
   drawSocialCard(canvas, { title: "Battle Complete", score: "18 vs 57" });

@@ -1,4 +1,5 @@
 /** Preview-only social card renderer. No wallet access or transaction handling. */
+import { artworkUrl } from "./garden-bot-nftree.js";
 export const WEBSITE = "www.tree-token.xyz";
 
 function fitText(ctx, text, x, y, maxWidth, size, color) {
@@ -8,7 +9,7 @@ function fitText(ctx, text, x, y, maxWidth, size, color) {
   ctx.fillText(text, x, y);
 }
 
-export function drawSocialCard(canvas, { title, score, image = null }) {
+export function drawSocialCard(canvas, { title, score, image = null, nftName = null }) {
   canvas.width = canvas.height = 1080;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Image creation is unavailable in this browser.");
@@ -30,7 +31,7 @@ export function drawSocialCard(canvas, { title, score, image = null }) {
   }
   ctx.textAlign = "center";
   fitText(ctx, score, 540, 861, 952, 46, "#f5ce61");
-  fitText(ctx, "BATTLE ARTWORK • GARDEN BOT", 540, 918, 952, 23, "#9dc4b7");
+  fitText(ctx, nftName ? `YOUR NFTREE • ${nftName}` : "BATTLE ARTWORK • GARDEN BOT", 540, 918, 952, 23, "#9dc4b7");
   ctx.fillStyle = "#052b26"; ctx.fillRect(32, 954, 1016, 94);
   fitText(ctx, WEBSITE, 540, 1014, 952, 42, "#ffffff");
   return canvas;
@@ -49,21 +50,40 @@ export function resolveCardArtwork(url, baseUrl) {
   } catch { return fallback; }
 }
 
-async function loadArtwork(url) {
+async function loadArtwork(url, external = false) {
   if (!url) return null;
-  const resolved = resolveCardArtwork(url, window.location.href);
-  return new Promise((resolve, reject) => {
+  let resolved = external ? artworkUrl(url) : resolveCardArtwork(url, window.location.href);
+  if (!resolved) throw new Error("The NFTree artwork URL is unavailable.");
+  let objectUrl;
+  if (external) {
+    // Anonymous CORS read: no cookies, wallet data, proxy, or untrusted SVG.
+    const response = await fetch(resolved, { mode: "cors", credentials: "omit", referrerPolicy: "no-referrer", signal: AbortSignal.timeout(12000) });
+    const mime = response.headers.get("content-type")?.split(";")[0];
+    if (!response.ok || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(mime)) throw new Error("The NFTree artwork could not be loaded.");
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("The NFTree artwork could not be loaded.");
+    const chunks = []; let size = 0;
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      size += value.length;
+      if (size > 12 * 1024 * 1024) { await reader.cancel(); throw new Error("This NFTree artwork is too large to share here."); }
+      chunks.push(value);
+    }
+    objectUrl = URL.createObjectURL(new Blob(chunks, { type: mime })); resolved = objectUrl;
+  }
+  try { return await new Promise((resolve, reject) => {
     const image = new Image();
     const timer = setTimeout(() => { image.src = ""; reject(new Error("Battle artwork timed out.")); }, 10000);
     image.onload = () => { clearTimeout(timer); resolve(image); };
     image.onerror = () => { clearTimeout(timer); reject(new Error("Battle artwork could not load.")); };
     image.src = resolved;
-  });
+  }); } finally { if (objectUrl) URL.revokeObjectURL(objectUrl); }
 }
 
-export async function createSocialCard({ title, score, imageUrl }) {
-  const image = await loadArtwork(imageUrl);
-  const canvas = drawSocialCard(document.createElement("canvas"), { title, score, image });
+export async function createSocialCard({ title, score, imageUrl, nftIdentity = null }) {
+  if (nftIdentity && !nftIdentity.imageUrl) throw new Error("This NFTree's artwork is unavailable. You can use battle artwork instead.");
+  const image = await loadArtwork(nftIdentity?.imageUrl || imageUrl, !!nftIdentity);
+  const canvas = drawSocialCard(document.createElement("canvas"), { title, score, image, nftName: nftIdentity?.name });
   const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("The card could not be created. Please try again.");
   return new File([blob], "garden-bot-result.png", { type: "image/png" });
@@ -71,19 +91,21 @@ export async function createSocialCard({ title, score, imageUrl }) {
 
 /** Uses the React instance already shipped in the preview; adds no second runtime. */
 export function socialCardComponent(React, jsx) {
-  return function SocialCard({ title, score, imageUrl, message, open }) {
+  return function SocialCard({ title, score, imageUrl, message, open, nftIdentity = null, identityStatus = "unavailable" }) {
     const [card, setCard] = React.useState(null);
     const [error, setError] = React.useState("");
     const [status, setStatus] = React.useState("");
+    const [fallback, setFallback] = React.useState(false), [retry, setRetry] = React.useState(0);
+    React.useEffect(() => { setFallback(false); }, [nftIdentity]);
     React.useEffect(() => {
       let cancelled = false, url;
       setCard(null); setError(""); setStatus("");
-      if (open) createSocialCard({ title, score, imageUrl }).then(file => {
+      if (open && identityStatus !== "checking") createSocialCard({ title, score, imageUrl, nftIdentity: fallback ? null : nftIdentity }).then(file => {
         if (cancelled) return;
         url = URL.createObjectURL(file); setCard({ file, url });
       }).catch(e => { if (!cancelled) setError(e.message); });
       return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
-    }, [title, score, imageUrl, open]);
+    }, [title, score, imageUrl, open, nftIdentity, identityStatus, fallback, retry]);
     if (!open) return null;
     const share = async () => {
       try {
@@ -96,11 +118,15 @@ export function socialCardComponent(React, jsx) {
     };
     return jsx.jsxs("section", { className: "gb-social-card", "aria-label": "Social result card", children: [
       jsx.jsx("h3", { children: "Your Battle Card" }),
-      jsx.jsx("p", { children: "1080 × 1080 • Battle artwork" }),
-      error ? jsx.jsx("p", { role: "alert", children: error }) : card
-        ? jsx.jsx("img", { src: card.url, alt: `${title}. ${score}. ${WEBSITE}.`, width: 1080, height: 1080 })
+      jsx.jsx("p", { children: nftIdentity && !fallback ? nftIdentity.name : "1080 × 1080 • Battle artwork" }),
+      identityStatus === "checking" ? jsx.jsx("p", { role: "status", children: "Preparing your NFTree card…" }) : error ? jsx.jsxs("div", { children: [
+        jsx.jsx("p", { role: "alert", children: error }),
+        jsx.jsx("button", { type: "button", onClick: () => setRetry(n => n + 1), children: "Retry Card" }),
+        nftIdentity && !fallback && jsx.jsx("button", { type: "button", onClick: () => setFallback(true), children: "Use Battle Artwork" }),
+      ] }) : card
+        ? jsx.jsx("img", { src: card.url, alt: `${title}. ${score}. ${nftIdentity && !fallback ? nftIdentity.name : "Battle artwork"}. ${WEBSITE}.`, width: 1080, height: 1080 })
         : jsx.jsx("p", { role: "status", children: "Creating your card…" }),
-      card && jsx.jsxs("div", { className: "gb-social-card-actions", children: [
+      card && !error && identityStatus !== "checking" && jsx.jsxs("div", { className: "gb-social-card-actions", children: [
         jsx.jsx("a", { href: card.url, download: "garden-bot-result.png", target: "_blank", rel: "noopener", children: "Save Image" }),
         jsx.jsx("button", { type: "button", onClick: share, children: "Share Card" })
       ] }),

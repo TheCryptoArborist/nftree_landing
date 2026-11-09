@@ -11,8 +11,8 @@ const liveBundle = readFileSync("public/battle/assets/index-BKkC2woN.js", "utf8"
 test("mobile Garden Bot Step 1 shows explanation, clear CTA and step 2 direction", () => {
   assert.ok(js.includes("Step 1 of 2"));
   assert.ok(js.includes("Step 2 of 2"));
-  assert.ok(js.includes("Choose one TREE Power bonus card below"));
-  assert.ok(js.includes("Both choices use one wallet confirmation"));
+  assert.ok(js.includes("Tap a TREE Power card to read its full effect"));
+  assert.ok(js.includes("Your bonus and first playing card use one wallet confirmation"));
   assert.ok(js.includes("button-bonus-next-step"));
   assert.ok(js.includes("View bonus card choices ↓"));
   assert.ok(js.includes("Continue to playing cards ↓"));

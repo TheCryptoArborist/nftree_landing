@@ -15,6 +15,7 @@ on:
       - "test/garden-bot-mobile-polish.test.mjs"
       - "scripts/qa-garden-bot-mobile-polish.mjs"
       - "scripts/qa-garden-bot-mobile-ranks.mjs"
+      - "scripts/qa-garden-bot-social-card.mjs"
       - "test/garden-bot-mobile-ranks.test.mjs"
       - ".github/workflows/garden-bot-same-origin.yml"
 
@@ -67,6 +68,8 @@ jobs:
         run: node scripts/qa-garden-bot-mobile-polish.mjs
       - name: Verify mobile rank cards and LP breakdown at five widths
         run: node scripts/qa-garden-bot-mobile-ranks.mjs
+      - name: Verify actual result card rendering and share behavior at four phone sizes
+        run: node scripts/qa-garden-bot-social-card.mjs
       - name: Save screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -77,4 +80,5 @@ jobs:
             qa-garden-bot-compact/
             qa-garden-bot-polish/
             qa-garden-bot-ranks/
+            qa-garden-bot-social/
           if-no-files-found: warn

@@ -1,0 +1,8 @@
+.gb-social-card { margin: 12px 0; padding: 12px; border: 1px solid #51ed9c; border-radius: 12px; background: #031c1b; }
+.gb-social-card h3 { margin: 0 0 6px; color: #9dfac2; }
+.gb-social-card p { font: 14px/1.4 Arial, sans-serif; color: #c3dfd3; margin: 6px 0; }
+.gb-social-card img { display: block; width: 100%; max-width: 400px; height: auto; margin: 10px auto; border-radius: 8px; }
+.gb-social-card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gb-social-card-actions a, .gb-social-card-actions button { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 8px; background: #07503b; color: white; border: 1px solid #51ed9c; border-radius: 8px; text-decoration: none; font: bold 14px Arial, sans-serif; }
+/* The card is intentionally scrollable inside the existing result dialog. */
+.gb-result-modal-copy { min-height: 0; }

@@ -10,14 +10,14 @@ const liveHtml = read("public/battle/index.html");
 const trialHtml = read("public/battle/trials/index.html");
 const leaderboardHtml = read("public/battle/leaderboard/index.html");
 const testHtml = read("public/battle/garden-bot-preview/index.html");
-const liveBundlePath = "public/battle/assets/index-BKkC2woN.js";
+const liveBundlePath = "public/battle/assets/index-tree-lock-proof.js";
 const previewBundlePath = "public/battle/assets/garden-bot-same-origin-preview.js";
 const live = read(liveBundlePath);
 const preview = read(previewBundlePath);
 const netlify = read("netlify.toml");
 
 test("the existing Garden Battles home/trials/leaderboard continue using their existing JS", () => {
-  const originalRef = 'src="/battle/assets/index-BKkC2woN.js"';
+  const originalRef = 'src="/battle/assets/index-tree-lock-proof.js"';
   for (const [name, html] of [["battle", liveHtml], ["trials", trialHtml], ["leaderboard", leaderboardHtml]]) {
     assert.ok(html.includes(originalRef), name + " must retain original production script");
     assert.ok(!html.includes("garden-bot-same-origin-preview.js"), name + " cannot start using preview code");

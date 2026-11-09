@@ -11,7 +11,7 @@ const bundle=read("public/battle/assets/garden-bot-same-origin-preview.js");
 test("landing rank styles load only through the existing Garden Bot preview",()=>{
  assert.match(preview,/garden-bot-preview-mobile-polish\.css/);
  assert.doesNotMatch(original,/garden-bot-preview-mobile-polish\.css/);
- assert.match(original,/src="\/battle\/assets\/index-BKkC2woN\.js"/);
+ assert.match(original,/src="\/battle\/assets\/index-tree-lock-proof\.js"/);
  assert.match(preview,/src="\/battle\/assets\/garden-bot-same-origin-preview\.js"/);
 });
 test("mobile rank cards stack and size rank text for readability",()=>{

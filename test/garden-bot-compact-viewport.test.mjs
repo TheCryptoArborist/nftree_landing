@@ -11,7 +11,7 @@ const bundle=read("public/battle/assets/garden-bot-same-origin-preview.js");
 test("only test page imports the compact battle layout",()=>{
   assert.match(preview,/garden-bot-preview-compact-game\.css/);
   assert.doesNotMatch(prod,/garden-bot-preview-compact-game\.css/);
-  assert.match(prod,/index-BKkC2woN\.js/);
+  assert.match(prod,/index-tree-lock-proof\.js/);
   assert.doesNotMatch(prod,/garden-bot-same-origin-preview\.js/);
 });
 

@@ -60,7 +60,7 @@ try {
       const start = page.locator('[data-testid="button-start-bot-battle"]');
       await start.waitFor({ state: "visible", timeout: 12000 });
       const label = (await start.innerText()).trim();
-      if (!/Play Garden Bot|Starting/.test(label)) throw new Error("Wrong game page: " + label);
+      if (!/play garden bot|starting/i.test(label)) throw new Error("Wrong game page: " + label);
       if (errors.length) throw new Error("Runtime error(s): " + errors.join(" | "));
       const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
       if (horizontalOverflow) throw new Error("Horizontal overflow at " + width);

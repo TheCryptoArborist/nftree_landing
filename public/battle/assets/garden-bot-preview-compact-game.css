@@ -364,6 +364,70 @@
   }
   .gb-battle-page-active .gb-battle-options > .gb-battle-log-panel { order: 12; }
 
+  /* Compact recent-bot-action summary and keep the Card Guide in one row.
+     The normal mobile CSS stacks the toolbar at <=380px, using ~86px. */
+  .gb-battle-page-active .gb-battle-options > .gb-hand-toolbar {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    min-height: 32px !important;
+    max-height: 38px !important;
+    padding: 3px 6px !important;
+    gap: 6px;
+  }
+  .gb-battle-page-active .gb-hand-toolbar > span { flex: 1 1 auto; min-width: 0; }
+  .gb-battle-page-active .gb-hand-toolbar > span strong {
+    font-size: 9px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gb-battle-page-active .gb-hand-toolbar > button {
+    flex: 0 0 auto;
+    width: auto !important;
+    min-width: 74px;
+    max-width: 92px;
+    min-height: 32px !important;
+    padding: 4px 5px !important;
+    font-size: 8px !important;
+  }
+  .gb-battle-page-active .gb-battle-options > .gb-last-opponent-move {
+    display: grid !important;
+    grid-template-columns: 36px minmax(0,1fr) !important;
+    align-items: center !important;
+    min-height: 44px !important;
+    max-height: 58px !important;
+    overflow: hidden !important;
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+  .gb-battle-page-active .gb-last-opponent-move > img {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .gb-battle-page-active .gb-last-opponent-move-copy {
+    min-width: 0;
+    display: flex !important;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .gb-battle-page-active .gb-last-opponent-move-copy strong {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .gb-battle-page-active .gb-last-opponent-move-copy > span {
+    font-size: 9px !important;
+    line-height: 1.16 !important;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .gb-battle-page-active .gb-last-opponent-move-result,
+  .gb-battle-page-active .gb-last-opponent-move > button { display: none !important; }
+
   /* On short phones prefer stable 44px actions over decorative height. */
   @media (max-height: 630px) {
     .gb-battle-page-active .gb-app-header { min-height: 39px; padding: 3px 6px !important; }

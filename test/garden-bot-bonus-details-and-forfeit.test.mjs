@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 
 const read=p=>readFileSync(p,"utf8");
 const liveHtml=read("public/battle/index.html");
-const liveJs=read("public/battle/assets/index-tree-lock-proof.js");
+const liveJs=read("public/battle/assets/index-tree-lock-v16.js");
 const preview=read("public/battle/assets/garden-bot-same-origin-preview.js");
 const polish=read("public/battle/assets/garden-bot-preview-mobile-polish.css");
 const page=read("public/battle/garden-bot-preview/index.html");
@@ -41,7 +41,7 @@ test("mobile Step 1 is concise and full card effect is in a scroll-safe modal",(
 });
 
 test("regular Garden Battles pages are unchanged",()=>{
-  assert.match(liveHtml,/src="\/battle\/assets\/index-tree-lock-proof\.js"/);
+  assert.match(liveHtml,/src="\/battle\/assets\/index-tree-lock-v16\.js"/);
   assert.doesNotMatch(liveHtml,/garden-bot-same-origin-preview\.js/);
   assert.doesNotMatch(liveHtml,/garden-bot-preview-mobile-polish\.css/);
   assert.match(liveJs,/\[y,v\]=p\.useState\(null\)/);

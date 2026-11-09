@@ -85,7 +85,7 @@ try {
     if (await page.locator('script[src="/battle/assets/garden-bot-same-origin-preview.js"]').count() !== 1) throw new Error("Accepted Garden Bot bundle missing");
     await page.locator('a[href="/battle"]').filter({ visible: true }).first().click();
     await page.locator('a[href="/battle/garden-bot"]').first().waitFor();
-    if (await page.locator('script[src="/battle/assets/index-tree-lock-proof.js"]').count() !== 1) throw new Error("Standard hub bundle not restored");
+    if (await page.locator('script[src="/battle/assets/index-tree-lock-v16.js"]').count() !== 1) throw new Error("Standard hub bundle not restored");
     await page.goBack();
     await page.locator('[data-testid="button-start-bot-battle"]').waitFor();
     if (await page.locator('script[src="/battle/assets/garden-bot-same-origin-preview.js"]').count() !== 1) throw new Error("Back navigation lost Garden Bot release");

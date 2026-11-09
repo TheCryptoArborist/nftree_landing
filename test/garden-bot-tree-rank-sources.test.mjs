@@ -7,7 +7,7 @@ const read = (file) => readFileSync(file, "utf8");
 const preview = read("public/battle/assets/garden-bot-same-origin-preview.js");
 const html = read("public/battle/garden-bot-preview/index.html");
 const liveHtml = read("public/battle/index.html");
-const liveBundle = read("public/battle/assets/index-tree-lock-proof.js");
+const liveBundle = read("public/battle/assets/index-tree-lock-v16.js");
 
 test("three status sources match the active Railway eligibility provider", () => {
   assert.deepEqual(TREE_RANK_SOURCES.map(x => x.id), ["suidex-v2", "suidex-v3", "tree-lock"]);
@@ -54,9 +54,9 @@ test("preview React bundle consumes shared helper and supports active tree-lock 
 });
 
 test("existing regular Garden Battles site and signing remain untouched", () => {
-  assert.match(liveHtml,/src="\/battle\/assets\/index-tree-lock-proof\.js"/);
+  assert.match(liveHtml,/src="\/battle\/assets\/index-tree-lock-v16\.js"/);
   assert.doesNotMatch(liveHtml,/garden-bot-tree-rank-sources/);
   assert.doesNotMatch(liveBundle,/garden-bot-tree-rank-sources/);
-  assert.match(html,/src="\/battle\/assets\/garden-bot-same-origin-preview\.js"/);
+  assert.match(html,/src="\/battle\/assets\/garden-bot-same-origin-preview\.js\?v=tree-lock-v16"/);
   assert.match(preview,/\[y,v\]=p\.useState\(H\.RANDOM_OBJECT_CANDIDATES\[0\]\)/);
 });

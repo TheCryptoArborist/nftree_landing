@@ -18,7 +18,7 @@ test("normal Garden Bot loads the accepted release and retains the preview", () 
 test("other modes keep their original bundle and only gain boundary navigation", () => {
   for (const file of ["public/battle/index.html", "public/battle/trials/index.html", "public/battle/leaderboard/index.html"]) {
     const html = read(file);
-    assert.match(html, /index-tree-lock-proof.js/);
+    assert.match(html, /index-tree-lock-v16.js/);
     assert.match(html, /garden-bot-navigation.js/);
     assert.doesNotMatch(html, /garden-bot-same-origin-preview.js|garden-bot-social-card.css/);
   }

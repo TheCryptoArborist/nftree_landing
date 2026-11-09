@@ -91,7 +91,7 @@ export async function createSocialCard({ title, score, imageUrl, nftIdentity = n
 
 /** Uses the React instance already shipped in the preview; adds no second runtime. */
 export function socialCardComponent(React, jsx) {
-  return function SocialCard({ title, score, imageUrl, message, open, nftIdentity = null, identityStatus = "unavailable" }) {
+  return function SocialCard({ title, score, imageUrl, message, open, nftIdentity = null, identityStatus = "unavailable", onShareReady = null }) {
     const [card, setCard] = React.useState(null);
     const [error, setError] = React.useState("");
     const [status, setStatus] = React.useState("");
@@ -106,7 +106,6 @@ export function socialCardComponent(React, jsx) {
       }).catch(e => { if (!cancelled) setError(e.message); });
       return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
     }, [title, score, imageUrl, open, nftIdentity, identityStatus, fallback, retry]);
-    if (!open) return null;
     const share = async () => {
       try {
         if (navigator.share && navigator.canShare?.({ files: [card.file] })) {
@@ -116,6 +115,11 @@ export function socialCardComponent(React, jsx) {
         if (e.name !== "AbortError") setStatus("Sharing failed. Save the card and attach it in your social app.");
       }
     };
+    React.useEffect(() => {
+      onShareReady?.(open && card && !error && identityStatus !== "checking" ? share : null);
+      return () => onShareReady?.(null);
+    }, [open, card, error, identityStatus, message, onShareReady]);
+    if (!open) return null;
     return jsx.jsxs("section", { className: "gb-social-card", "aria-label": "Social result card", children: [
       jsx.jsx("h3", { children: "Your Battle Card" }),
       jsx.jsx("p", { children: nftIdentity && !fallback ? nftIdentity.name : "1080 × 1080 • Battle artwork" }),

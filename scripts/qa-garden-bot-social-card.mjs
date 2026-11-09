@@ -69,6 +69,8 @@ try {
     await share.click();
     const sent = await page.evaluate(() => window.qaShares);
     assert.equal(sent.length, 1); assert.match(sent[0].text, /www\.tree-token\.xyz/); assert.ok(sent[0].size > 1000);
+    await page.getByRole("button", { name: /^Share to Apps/ }).click();
+    assert.equal(await page.evaluate(() => window.qaShares.length), 2);
     await page.evaluate(() => { window.qaShareError = "AbortError"; });
     await share.click();
     assert.equal(await section.getByRole("status").innerText(), "Save the image to attach it to X, Facebook, or a message.");
@@ -107,6 +109,8 @@ try {
     await page.getByRole("button", { name: "Use Battle Artwork" }).click();
     await page.getByRole("button", { name: "Share Card", exact: true }).waitFor();
     assert.match(await page.getByRole("region", { name: "Social result card" }).locator("img").getAttribute("alt"), /Battle artwork/);
+    await page.getByRole("button", { name: /^Share to Apps/ }).click();
+    assert.equal(await page.evaluate(() => window.qaShares.length), 1);
     await page.goto(origin + "/__qa-result?broken=1");
     await page.getByRole("alert").filter({ hasText: "Battle artwork could not load" }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Share Card", exact: true }).count(), 0);

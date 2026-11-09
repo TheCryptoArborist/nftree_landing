@@ -34,6 +34,6 @@ test("compact game applies only to active mobile battles and retains all click h
 test("preview path keeps same-origin assets and fifth card onboarding",()=>{
   assert.match(preview,/src="\/battle\/assets\/garden-bot-same-origin-preview\.js"/);
   assert.match(preview,/garden-bot-preview-onboarding\.css/);
-  assert.match(bundle,/Choose one TREE Power bonus card below/);
+  assert.match(bundle,/Tap a TREE Power card to read its full effect/);
   assert.match(bundle,/Your Bonus Fifth Move/);
 });

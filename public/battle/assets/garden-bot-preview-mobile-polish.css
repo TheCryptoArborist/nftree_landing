@@ -235,3 +235,194 @@
     scroll-behavior: auto;
   }
 }
+
+/* Phase-one onboarding closeout: one clear instruction, no repeated text. */
+@media screen and (max-width: 640px) {
+  .gb-battle-page-active .gb-battle-options > .gb-fifth-picker > p {
+    display: none !important;
+  }
+
+  /* Bonus cards remain full-width tap targets. Tapping opens an inspect-first
+     dialog showing the complete effect, then the player chooses explicitly. */
+  .gb-battle-page-active .gb-fifth-picker-card {
+    min-height: 60px !important;
+    touch-action: manipulation;
+  }
+
+  /* Dangerous action lives in a quiet disclosure instead of a giant red CTA. */
+  .gb-battle-page-active .gb-battle-secondary-controls .gb-match-options-disclosure {
+    flex: 0 1 auto;
+    width: min(240px, 100%);
+    margin: 0 auto;
+    padding: 0;
+    border: 1px solid rgba(156, 181, 173, .38);
+    border-radius: 9px;
+    background: rgba(5, 28, 25, .8);
+    color: #d7f7ee;
+    font-family: Orbitron, sans-serif;
+  }
+  .gb-match-options-disclosure > summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 9px 13px;
+    font-weight: 800;
+    font-size: 11px;
+    list-style: none;
+  }
+  .gb-match-options-disclosure > summary::-webkit-details-marker { display: none; }
+  .gb-match-options-disclosure > summary::after {
+    content: " ▾";
+    margin-left: 8px;
+    color: #b5d5c9;
+  }
+  .gb-match-options-disclosure[open] > summary { border-bottom: 1px solid #56736b55; }
+  .gb-battle-page-active .gb-match-options-disclosure .gb-battle-forfeit-button {
+    display: block;
+    width: calc(100% - 16px);
+    min-height: 44px;
+    margin: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(248, 113, 113, .7) !important;
+    background: rgba(87, 24, 24, .65) !important;
+    color: #ffe5e5 !important;
+    font-size: 10px !important;
+    box-shadow: none !important;
+    font-weight: 800;
+    cursor: pointer;
+  }
+}
+
+/* Card-effect and forfeit confirmations are available on all preview widths,
+   including desktop if the user opens the same test route. */
+.gb-bonus-detail-backdrop,
+.gb-forfeit-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 12px
+    max(12px, env(safe-area-inset-bottom, 0px));
+  background: rgba(0, 7, 9, .9);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+  z-index: 550;
+  box-sizing: border-box;
+}
+.gb-bonus-detail-dialog,
+.gb-forfeit-confirm-dialog {
+  box-sizing: border-box;
+  width: min(430px, 100%);
+  max-height: min(88dvh, 740px);
+  padding: 17px;
+  border-radius: 14px;
+  background: linear-gradient(150deg, #142c2a, #190d24);
+  color: #f3fff9;
+  border: 2px solid #b56cff;
+  box-shadow: 0 0 30px #a878ff66;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  text-align: left;
+  font-family: Orbitron, sans-serif;
+}
+.gb-forfeit-confirm-dialog {
+  border-color: #f87171;
+  box-shadow: 0 0 30px #f8717155;
+}
+.gb-bonus-detail-close {
+  position: absolute;
+  right: 9px;
+  top: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  border: 1px solid #f6edff88;
+  background: #271636;
+  color: white;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 24px;
+}
+.gb-bonus-detail-kicker {
+  display: block;
+  color: #d9b6ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  margin: 6px 45px 10px 0;
+}
+.gb-bonus-detail-dialog h2,
+.gb-forfeit-confirm-dialog h2 {
+  font-size: clamp(17px, 5vw, 23px);
+  margin: 0 40px 13px 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.gb-bonus-detail-art {
+  display: block;
+  max-height: min(150px, 23dvh);
+  max-width: 100%;
+  margin: 0 auto 14px;
+  object-fit: contain;
+}
+.gb-bonus-detail-effect {
+  font: 600 15px/1.5 system-ui, sans-serif;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  margin: 0 0 10px;
+}
+.gb-bonus-detail-help,
+.gb-forfeit-confirm-dialog p {
+  color: #d3e4e0;
+  font: 400 12px/1.5 system-ui, sans-serif;
+  margin: 0 0 15px;
+}
+.gb-bonus-detail-actions,
+.gb-forfeit-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.gb-bonus-detail-actions button,
+.gb-forfeit-confirm-actions button {
+  min-height: 48px;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font: 800 11px/1.3 Orbitron, sans-serif;
+  color: #ecfff6;
+  border: 1px solid #b2cebf88;
+  background: #122a29;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.gb-bonus-detail-actions .gb-bonus-detail-select {
+  border-color: #d8c7ff;
+  color: #170925;
+  background: linear-gradient(135deg, #caa4ff, #f2d175);
+}
+.gb-forfeit-confirm-actions .gb-forfeit-confirm-danger {
+  border-color: #fbb;
+  color: #fff;
+  background: #a52b31;
+}
+.gb-forfeit-confirm-actions .gb-forfeit-confirm-danger:disabled { opacity: .5; }
+.gb-bonus-detail-actions button:focus-visible,
+.gb-bonus-detail-close:focus-visible,
+.gb-forfeit-confirm-actions button:focus-visible,
+.gb-match-options-disclosure summary:focus-visible {
+  outline: 3px solid #f4edff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 360px) {
+  .gb-bonus-detail-dialog, .gb-forfeit-confirm-dialog { padding: 12px; }
+  .gb-bonus-detail-actions,
+  .gb-forfeit-confirm-actions { gap: 6px; }
+  .gb-bonus-detail-actions button,
+  .gb-forfeit-confirm-actions button { font-size: 10px; padding: 6px; }
+}

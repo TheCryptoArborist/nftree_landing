@@ -67,7 +67,7 @@ for(const {width,height} of sizes){
   if(metrics.arena.bottom>metrics.cards[0].top)problems.push("arena/card overlap");
   if(!metrics.playerGrowth||!metrics.botGrowth)problems.push("missing Growth values");
   if(errors.length)problems.push("page errors: "+errors.join(" | "));
-  if(problems.length)throw Error(problems.join("; "));
+  if(problems.length){ console.error("DIAGNOSTICS "+width+"x"+height+" "+JSON.stringify(metrics)); throw Error(problems.join("; ")); }
   await page.screenshot({path:"qa-garden-bot-compact/"+width+"x"+height+".png",fullPage:false});
   await page.locator(".gb-battle-move-card").first().click();
   if((await page.locator('[data-testid="text-growth-player"]').innerText()).trim()!=="24 / 50")throw Error("Card tap did not execute test interaction");

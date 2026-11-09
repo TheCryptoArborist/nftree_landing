@@ -49,13 +49,13 @@ const sizes = [
 fs.mkdirSync("qa-garden-bot-preview", { recursive: true });
 let failed = false;
 try {
-  for (const { width, height } of sizes) {
+  for (const route of ["/battle/garden-bot-preview", "/battle/garden-bot"]) for (const { width, height } of sizes) {
     const page = await browser.newPage({ viewport: { width, height }, isMobile: true, hasTouch: true });
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     page.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)/, route => route.abort());
     try {
-      const response = await page.goto("http://127.0.0.1:4175/battle/garden-bot-preview", { waitUntil: "domcontentloaded" });
+      const response = await page.goto("http://127.0.0.1:4175" + route, { waitUntil: "domcontentloaded" });
       if (!response || response.status() !== 200) throw new Error("Preview page did not return 200");
       const start = page.locator('[data-testid="button-start-bot-battle"]');
       await start.waitFor({ state: "visible", timeout: 12000 });
@@ -74,6 +74,24 @@ try {
       await page.close();
     }
   }
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const documents = [];
+    page.on("request", request => { if (request.resourceType() === "document") documents.push(new URL(request.url()).pathname); });
+    await page.goto("http://127.0.0.1:4175/battle", { waitUntil: "domcontentloaded" });
+    await page.locator('a[href="/battle/garden-bot"]').first().click();
+    await page.locator('[data-testid="button-start-bot-battle"]').waitFor();
+    if (!documents.includes("/battle/garden-bot")) throw new Error("Hub did not load the Garden Bot document");
+    if (await page.locator('script[src="/battle/assets/garden-bot-same-origin-preview.js"]').count() !== 1) throw new Error("Accepted Garden Bot bundle missing");
+    await page.locator('a[href="/battle"]').filter({ visible: true }).first().click();
+    await page.locator('a[href="/battle/garden-bot"]').first().waitFor();
+    if (await page.locator('script[src="/battle/assets/index-BKkC2woN.js"]').count() !== 1) throw new Error("Original hub bundle not restored");
+    await page.goBack();
+    await page.locator('[data-testid="button-start-bot-battle"]').waitFor();
+    if (await page.locator('script[src="/battle/assets/garden-bot-same-origin-preview.js"]').count() !== 1) throw new Error("Back navigation lost Garden Bot release");
+    console.log("PASS hub → Garden Bot → hub → browser back preserves bundle boundaries");
+  } catch (error) { failed = true; console.error(String(error)); }
+  finally { await page.close(); }
 } finally {
   await browser.close();
   await new Promise(resolve => server.close(resolve));

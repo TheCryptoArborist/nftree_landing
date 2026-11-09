@@ -35,7 +35,8 @@ let failures=0;
 try {
   for(const [width,height] of [[320,568],[375,667],[390,844],[414,896]]) {
     const page=await browser.newPage({viewport:{width,height},isMobile:true,hasTouch:true});
-    const errors=[];page.on("pageerror",e=>errors.push(e.message));
+    const errors=[];page.on("pageerror",e=>{errors.push(e.message);console.error("PAGE ERROR",e.stack);});
+    page.on("requestfailed",r=>console.error("REQUEST FAILED",r.url(),r.failure()?.errorText));
     await page.route("**/*",route=>new URL(route.request().url()).origin===origin ? route.continue() : route.abort());
     await page.addInitScript(()=>{
       localStorage.clear();

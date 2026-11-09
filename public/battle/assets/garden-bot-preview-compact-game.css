@@ -373,3 +373,83 @@
     .gb-battle-page-active .gb-battle-options .gb-move-face-visual { height: 38px !important; min-height: 38px !important; }
   }
 }
+
+/* Keep the bot's last move visible as a single-line result strip rather than
+   letting it occupy several card heights on narrow phone screens. */
+@media screen and (max-width: 640px) {
+  .gb-battle-page-active .gb-battle-options > .gb-last-opponent-move {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    align-items: center;
+    max-height: 43px;
+    min-height: 36px;
+    padding: 4px 6px !important;
+    overflow: hidden;
+    gap: 6px;
+  }
+  .gb-battle-page-active .gb-last-opponent-move > img {
+    flex: 0 0 auto;
+    width: 29px !important;
+    height: 29px !important;
+  }
+  .gb-battle-page-active .gb-last-opponent-move-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    gap: 0;
+  }
+  .gb-battle-page-active .gb-last-opponent-move-copy small,
+  .gb-battle-page-active .gb-last-opponent-move-copy > span,
+  .gb-battle-page-active .gb-last-opponent-move > button {
+    display: none !important;
+  }
+  .gb-battle-page-active .gb-last-opponent-move-copy strong {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gb-battle-page-active .gb-last-opponent-move-result {
+    flex: 0 0 auto;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .gb-battle-page-active .gb-battle-options > .gb-hand-toolbar {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between;
+    max-height: 36px;
+    min-height: 30px;
+    overflow: hidden;
+  }
+  .gb-battle-page-active .gb-hand-toolbar > span {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .gb-battle-page-active .gb-hand-toolbar strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+  }
+  .gb-battle-page-active .gb-hand-toolbar button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-height: 27px;
+    padding: 4px 6px;
+    font-size: 8px;
+  }
+  .gb-battle-page-active .gb-battle-options > .gb-turn-command:not(:has(.gb-bonus-step-help)) {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center;
+    gap: 6px;
+    max-height: 36px;
+    min-height: 30px;
+    padding: 4px 5px !important;
+  }
+  .gb-battle-page-active .gb-turn-command:not(:has(.gb-bonus-step-help)) strong {
+    font-size: 10px;
+  }
+}

@@ -16,6 +16,14 @@
     display: none !important;
   }
 
+  /* Once the five playable cards are actually rendered, the Step 2 title
+     supplies sufficient guidance. Remove the now-redundant explanatory block
+     to keep the fifth card visible even at 320×568. Step 1 remains intact. */
+  .gb-battle-options:has(> .gb-move-card-grid > .gb-battle-move-card)
+    .gb-bonus-step-help {
+    display: none !important;
+  }
+
   /* Step 1 already labels the choice, so avoid two large duplicate headings.
      Keep the short explanation and the bonus cards themselves visible. */
   .gb-battle-page-active .gb-battle-options > .gb-fifth-picker .gb-fifth-picker-title {

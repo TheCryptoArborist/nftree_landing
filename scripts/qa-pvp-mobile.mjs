@@ -64,7 +64,7 @@ try {
       if(scenario==="waiting"||scenario==="timeout"){wallet.isMyTurn=false;battle.turn=1;}
       if(scenario==="timeout")battle.lastMoveMs=Date.now()-25*60*60*1000;
       if(scenario==="pending"){wallet.isMoveTransactionPending=true;wallet.moveLifecycleStage="awaiting-wallet-approval";}
-      if(scenario==="bonus")battle.player1Moves=[16,28,8,13];
+      if(scenario==="bonus")battle.player1Moves=[16,28,8,13,35,36,37];
       if(scenario==="finish")battle.player1Growth=49;
       window.qaWallet=wallet;
       Object.defineProperty(navigator,"canShare",{value:data=>data.files?.[0]?.type==="image/png"});

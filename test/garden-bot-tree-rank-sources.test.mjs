@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { TREE_RANK_SOURCES, formatTreeRankSource } from "../public/battle/assets/garden-bot-tree-rank-sources.mjs";
+import { TREE_RANK_SOURCES, formatTreeRankSource } from "../public/battle/assets/garden-bot-tree-rank-sources.js";
 
 const read = (file) => readFileSync(file, "utf8");
 const preview = read("public/battle/assets/garden-bot-same-origin-preview.js");

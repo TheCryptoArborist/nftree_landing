@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Garden Bot rank mobile readability QA — test fixture</title>
+<link rel="stylesheet" href="/battle/assets/index-trdY-Mq5.css">
+<link rel="stylesheet" href="/battle/assets/garden-bot-preview-onboarding.css">
+<link rel="stylesheet" href="/battle/assets/garden-bot-preview-compact-game.css">
+<link rel="stylesheet" href="/battle/assets/garden-bot-preview-mobile-polish.css">
+<style>
+  *{box-sizing:border-box}
+  body{background:#071d19;color:white;margin:0;min-height:100vh}
+  .gb-player-status-strip{margin:10px}
+  .gb-mobile-profile-heading button{cursor:pointer}
+  .gb-dedicated-mode-heading{background:#061c1c;border:1px solid #28694c;margin:10px;padding:16px;border-radius:12px}
+  .gb-mode-action{display:block;width:100%;min-height:48px;border-radius:9px;background:linear-gradient(120deg,#ff9d36,#ffc36f);color:#241400;font:900 14px Orbitron,sans-serif}
+</style></head><body>
+<div class="gb-battle-page" style="background:#04160e;min-height:100vh;">
+<header class="gb-app-header">
+  <div class="gb-header-brand"><img class="gb-header-game-logo" src="/battle/assets/garden.png" alt="Garden Battles"></div>
+  <div class="gb-header-actions"><button type="button">Wallet connected</button><button type="button" class="gb-mobile-menu-toggle">Menu</button></div>
+</header>
+<section class="gb-player-status-strip" aria-label="Connected player status" data-expanded="false">
+  <div class="gb-mobile-profile-heading">
+    <span>🏆 Player Profile</span>
+    <div><a href="/battle/leaderboard">Leaderboard</a>
+    <button type="button" id="stats-toggle" aria-expanded="false" aria-label="Show player statistics and badges">Stats ▾</button></div>
+  </div>
+  <div class="gb-player-profile-content">
+    <div class="gb-rank-showcase">
+      <a href="/battle/leaderboard" style="display:block;text-decoration:none" aria-label="View full leaderboard">
+        <div class="gb-player-record-card gb-hud-rank-card gb-battle-rank-canopy-champion" title="View full leaderboard">
+          <span class="gb-hud-rank-crest-shell"><img class="gb-tree-badge-crest-lg" src="/battle/assets/badges/battle-rank/canopy-champion.webp" alt="Battle rank emblem"/></span>
+          <span class="gb-hud-rank-content">
+            <span class="gb-battle-rank-kicker">Battle Rank</span>
+            <span class="gb-battle-rank-title">Canopy Champion</span>
+            <span class="gb-player-record-stats"><span>6W</span><span>3L</span></span>
+            <span class="gb-player-record-meta">9 battles</span>
+          </span>
+        </div>
+      </a>
+    </div>
+    <div class="gb-holder-rank-badge gb-hud-rank-card gb-tree-status-card gb-holder-rank-canopy-holder">
+      <span class="gb-hud-rank-crest-shell"><img class="gb-tree-badge-crest-lg" src="/battle/assets/badges/tree-status/canopy-holder.webp" alt="TREE rank emblem"/></span>
+      <span class="gb-hud-rank-content">
+        <span class="gb-holder-rank-kicker">TREE Status Rank · Tier 4 of 6</span>
+        <span class="gb-holder-rank-title">Canopy Holder</span>
+        <span class="gb-holder-rank-balance">Liquid wallet: 3.6M TREE</span>
+        <span class="gb-tree-status-qualifying">Qualifying LP + staking: 109671048555187 TREE</span>
+        <span class="gb-tree-status-next-tier">Next TREE rank: Ancient Grove at 5.0M TREE held</span>
+        <span class="gb-tree-status-sources" aria-label="TREE liquidity and staking breakdown">
+          <span data-status="qualified-data"><strong>V2 LP</strong><span>160781548905 TREE</span></span>
+          <span data-status="qualified-data"><strong>V3 LP</strong><span>108063713066137 TREE</span></span>
+          <span data-status="checking"><strong>Staked</strong><span>Checking…</span></span>
+        </span>
+      </span>
+    </div>
+  </div>
+</section>
+<main class="gb-battle-main">
+  <section class="gb-dedicated-mode-heading">
+    <div class="gb-dedicated-mode-copy">
+    <small>Repeatable Single-Player</small>
+    <h1>Garden Bot</h1><p>Build your hand, outgrow Garden Bot, and earn ranked battle records.</p>
+    </div>
+    <button class="gb-mode-action gb-mode-action-bot" data-testid="button-start-bot-battle">Play Garden Bot</button>
+  </section>
+</main></div>
+<script>
+const toggle=document.getElementById("stats-toggle");
+toggle.addEventListener("click",()=>{
+ const profile=document.querySelector(".gb-player-status-strip");
+ const open=profile.dataset.expanded!=="true";
+ profile.dataset.expanded=String(open);
+ toggle.setAttribute("aria-expanded",String(open));
+ toggle.textContent=open?"Less ▴":"Stats ▾";
+});
+</script>
+</body></html>

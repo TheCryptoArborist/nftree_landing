@@ -74,7 +74,7 @@ for(const size of sizes){
   if(expanded.expanded!=="true")throw Error("Stats disclosure failed");
   if(expanded.bodyWidth>size.width+1)throw Error("Horizontal overflow when Stats expanded");
   if(expanded.sourcesDisplay==="none")throw Error("LP/Staking breakdown not revealed");
-  if(expanded.sourceRows.length!==3||expanded.sourceRows.some(x=>x.size<11||x.bounds.width<size.width-125))throw Error("Expanded source rows unreadable or clipped: "+JSON.stringify({collapsed,expanded}));
+  if(expanded.sourceRows.length!==3||expanded.sourceRows.some(x=>x.size<11||x.bounds.width<size.width-145||x.bounds.left<0||x.bounds.right>size.width+1))throw Error("Expanded source rows unreadable or clipped: "+JSON.stringify({collapsed,expanded}));
   await page.screenshot({path:"qa-garden-bot-ranks/details-"+size.width+"x"+size.height+".png",fullPage:true});
   await page.locator("#stats-toggle").click();
   const closed=await measure();

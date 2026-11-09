@@ -104,7 +104,10 @@ try {
           fixture.querySelector('[data-testid="text-growth-opponent"]').textContent="7 / 50";
         });
       });
-      await page.waitForTimeout(150);
+      // Wait for the actual artwork, rather than assuming it decodes in 150ms.
+      await page.locator("#qa-active-match .gb-battle-tree-portrait img").evaluateAll(
+        images => Promise.all(images.map(image => image.decode()))
+      );
       const m=await page.evaluate(()=>{
         const bbox=x=>{const r=x.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height,width:r.width}};
         const root=document.getElementById("qa-active-match");

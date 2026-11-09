@@ -50,6 +50,16 @@
   status = 200
 
 [[redirects]]
+  from = "/battle/garden-bot-preview"
+  to = "/battle/garden-bot-preview/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/battle/garden-bot-preview/"
+  to = "/battle/garden-bot-preview/index.html"
+  status = 200
+
+[[redirects]]
   from = "/battle/*"
   to = "/battle/index.html"
   status = 200

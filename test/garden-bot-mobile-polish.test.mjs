@@ -11,7 +11,7 @@ const game=read("public/battle/assets/garden-bot-same-origin-preview.js");
 test("mobile polish is available only on NFTree's Garden Bot test route",()=>{
   assert.match(preview,/garden-bot-preview-mobile-polish\.css/);
   assert.doesNotMatch(original,/garden-bot-preview-mobile-polish\.css/);
-  assert.match(original,/index-tree-lock-proof\.js/);
+  assert.match(original,/index-tree-lock-v16\.js/);
   assert.doesNotMatch(original,/garden-bot-same-origin-preview\.js/);
 });
 test("mobile battle keeps five-card stage while shortening redundant controls",()=>{

@@ -11,7 +11,7 @@ const bundle=read("public/battle/assets/garden-bot-same-origin-preview.js");
 test("only test page imports the compact battle layout",()=>{
   assert.match(preview,/garden-bot-preview-compact-game\.css/);
   assert.doesNotMatch(prod,/garden-bot-preview-compact-game\.css/);
-  assert.match(prod,/index-tree-lock-proof\.js/);
+  assert.match(prod,/index-tree-lock-v16\.js/);
   assert.doesNotMatch(prod,/garden-bot-same-origin-preview\.js/);
 });
 
@@ -32,7 +32,7 @@ test("compact game applies only to active mobile battles and retains all click h
 });
 
 test("preview path keeps same-origin assets and fifth card onboarding",()=>{
-  assert.match(preview,/src="\/battle\/assets\/garden-bot-same-origin-preview\.js"/);
+  assert.match(preview,/src="\/battle\/assets\/garden-bot-same-origin-preview\.js\?v=tree-lock-v16"/);
   assert.match(preview,/garden-bot-preview-onboarding\.css/);
   assert.match(bundle,/Tap a TREE Power card to read its full effect/);
   assert.match(bundle,/Your Bonus Fifth Move/);

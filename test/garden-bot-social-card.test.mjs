@@ -49,6 +49,14 @@ test("personalized card identifies the actual NFTree instead of labeling it gene
   assert.equal(calls.some(c => c[0] === "fillText" && c[1] === "BATTLE ARTWORK • GARDEN BOT"), false);
 });
 
+test("PvP result card identifies PvP and retains TREE website branding", () => {
+  const { canvas, calls } = recordingCanvas();
+  drawSocialCard(canvas, { title: "You Win!", score: "57 vs 18", mode: "PvP Battle" });
+  const text=calls.filter(c=>c[0]==="fillText").map(c=>c[1]);
+  assert.ok(text.includes("PVP BATTLE"));assert.ok(text.includes("BATTLE ARTWORK • PVP BATTLE"));assert.ok(text.includes(WEBSITE));
+  assert.equal(text.includes("GARDEN BOT"),false);
+});
+
 test("missing artwork uses an explicit battle illustration fallback; invalid dimensions fail", () => {
   const { canvas, calls } = recordingCanvas();
   drawSocialCard(canvas, { title: "Battle Complete", score: "18 vs 57" });

@@ -16,6 +16,10 @@ on:
       - "scripts/qa-garden-bot-mobile-polish.mjs"
       - "scripts/qa-garden-bot-mobile-ranks.mjs"
       - "scripts/qa-garden-bot-social-card.mjs"
+      - "scripts/qa-pvp-mobile.mjs"
+      - "scripts/pvp-mobile-patches.mjs"
+      - "scripts/build-pvp-mobile-preview.mjs"
+      - "test/pvp-mobile-preview.test.mjs"
       - "test/garden-bot-mobile-ranks.test.mjs"
       - ".github/workflows/garden-bot-same-origin.yml"
 
@@ -58,6 +62,8 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
+      - name: Verify isolated PvP mobile UI with simulated wallet callbacks
+        run: node scripts/qa-pvp-mobile.mjs
       - name: Verify same-origin Garden Bot route in mobile Chromium
         run: node scripts/qa-garden-bot-same-origin.mjs
       - name: Verify all five cards and both Growth meters fit phone viewports
@@ -81,4 +87,5 @@ jobs:
             qa-garden-bot-polish/
             qa-garden-bot-ranks/
             qa-garden-bot-social/
+            qa-pvp-mobile/
           if-no-files-found: warn

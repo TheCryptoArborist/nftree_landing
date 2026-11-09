@@ -36,7 +36,6 @@ try {
   for(const [width,height] of [[320,568],[375,667],[390,844],[414,896]]) {
     const page=await browser.newPage({viewport:{width,height},isMobile:true,hasTouch:true});
     const errors=[];page.on("pageerror",e=>{errors.push(e.message);console.error("PAGE ERROR",e.stack);});
-    page.on("requestfailed",r=>console.error("REQUEST FAILED",r.url(),r.failure()?.errorText));
     await page.route("**/*",route=>new URL(route.request().url()).origin===origin ? route.continue() : route.abort());
     await page.addInitScript(()=>{
       localStorage.clear();
@@ -47,9 +46,9 @@ try {
         player1Moves:[16,28,8,13,35],player2Moves:[16,28,8,13,35],player1Growth:13,player2Growth:10,
         turn:0,winner:null,finished:false,isBotBattle:false,battleVersion:"pvp-v3",targetGrowth:50,
         matchLabel:"50-Growth Match",lastMoveMs:Date.now(),player1FifthMoveEntitled:true,player2FifthMoveEntitled:true};
-      const queue={queueId:"0x"+"d".repeat(64),player:owner,entryFeeMist:3000000000n,targetGrowth:50,matchLabel:"50-Growth Match",queueType:"v3"};
+      const queue={queueId:"0x"+"d".repeat(64),player:owner,entryFeeMist:3000000000,targetGrowth:50,matchLabel:"50-Growth Match",queueType:"v3"};
       const rerender=()=>window.qaRender?.();
-      const wallet={address:owner,isConnected:true,battleState:battle,isWaiting:false,pvpQueueState:null,entryFeeMist:3000000000n,isMyTurn:true,
+      const wallet={address:owner,isConnected:true,battleState:battle,isWaiting:false,pvpQueueState:null,entryFeeMist:3000000000,isMyTurn:true,
         actionLog:[],moveLifecycleStage:"idle",isMoveTransactionPending:false,treeRerollLifecycleStage:"idle",isTreeRerollTransactionPending:false,
         treeRerollCostTree:20000,isBattleRefreshPending:false,recoverableBattleError:null,
         clearActionLog(){},dismissRecoverableBattleError(){},

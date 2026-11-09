@@ -62,6 +62,8 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
+      - name: Verify isolated PvP mobile UI with simulated wallet callbacks
+        run: node scripts/qa-pvp-mobile.mjs
       - name: Verify same-origin Garden Bot route in mobile Chromium
         run: node scripts/qa-garden-bot-same-origin.mjs
       - name: Verify all five cards and both Growth meters fit phone viewports
@@ -74,8 +76,6 @@ jobs:
         run: node scripts/qa-garden-bot-mobile-ranks.mjs
       - name: Verify actual result card rendering and share behavior at four phone sizes
         run: node scripts/qa-garden-bot-social-card.mjs
-      - name: Verify isolated PvP mobile UI with simulated wallet callbacks
-        run: node scripts/qa-pvp-mobile.mjs
       - name: Save screenshots
         if: always()
         uses: actions/upload-artifact@v4

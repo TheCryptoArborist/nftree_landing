@@ -426,3 +426,142 @@
   .gb-bonus-detail-actions button,
   .gb-forfeit-confirm-actions button { font-size: 10px; padding: 6px; }
 }
+
+/* Garden Bot landing screen: readable mobile rank summaries.
+   This stylesheet is loaded only by the same-origin TEST path, not /battle. */
+@media screen and (max-width: 700px) {
+  .gb-player-status-strip .gb-mobile-profile-heading {
+    gap: 8px;
+    margin-bottom: 9px;
+  }
+  .gb-player-status-strip .gb-mobile-profile-heading > span {
+    font-size: 11px !important;
+    line-height: 1.3;
+  }
+  .gb-player-status-strip .gb-mobile-profile-heading a,
+  .gb-player-status-strip .gb-mobile-profile-heading button {
+    min-height: 40px !important;
+    font-size: 9px !important;
+    padding: 7px 9px !important;
+  }
+
+  /* The underlying two-column mobile grid is too narrow for a live
+     balance/rank plus three large numbers. Give each rank full width. */
+  .gb-player-status-strip .gb-player-profile-content {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+  .gb-player-status-strip .gb-rank-showcase { display: contents !important; }
+  .gb-player-status-strip .gb-player-profile-content > *,
+  .gb-player-status-strip .gb-player-profile-content .gb-rank-showcase > * {
+    min-width: 0;
+  }
+  .gb-player-status-strip .gb-player-record-card.gb-hud-rank-card,
+  .gb-player-status-strip .gb-tree-status-card {
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box;
+    min-height: 88px !important;
+    grid-template-columns: 60px minmax(0, 1fr) !important;
+    gap: 11px !important;
+    padding: 11px !important;
+    align-items: center;
+  }
+  .gb-player-status-strip .gb-tree-status-card {
+    min-height: 135px !important;
+  }
+  .gb-player-status-strip .gb-hud-rank-crest-shell {
+    height: 58px !important;
+    width: 58px !important;
+  }
+  .gb-player-status-strip .gb-hud-rank-card .gb-tree-badge-crest-lg,
+  .gb-player-status-strip .gb-player-record-card .gb-hud-rank-crest-shell .gb-tree-badge-crest-lg {
+    height: 52px !important;
+    width: 52px !important;
+  }
+  .gb-player-status-strip .gb-hud-rank-content {
+    min-width: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 4px !important;
+  }
+  .gb-player-status-strip .gb-hud-rank-card .gb-holder-rank-kicker,
+  .gb-player-status-strip .gb-hud-rank-card .gb-battle-rank-kicker {
+    font-size: 10px !important;
+    line-height: 1.3 !important;
+    letter-spacing: .4px !important;
+    overflow-wrap: anywhere;
+  }
+  .gb-player-status-strip .gb-hud-rank-card .gb-holder-rank-title,
+  .gb-player-status-strip .gb-hud-rank-card .gb-battle-rank-title {
+    font-size: clamp(16px, 4.6vw, 20px) !important;
+    line-height: 1.2 !important;
+    letter-spacing: .1px !important;
+    overflow-wrap: anywhere;
+  }
+  .gb-player-status-strip .gb-hud-rank-card .gb-holder-rank-balance {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+    letter-spacing: 0 !important;
+    font-family: system-ui, sans-serif;
+    font-weight: 700 !important;
+    color: #ebfff4;
+    padding-top: 5px !important;
+    overflow-wrap: anywhere;
+  }
+  .gb-player-status-strip .gb-tree-status-qualifying {
+    font: 700 12px/1.4 system-ui, sans-serif !important;
+    color: #aaffc8;
+    overflow-wrap: anywhere;
+  }
+  .gb-player-status-strip .gb-tree-status-next-tier {
+    font: 600 11px/1.35 system-ui, sans-serif !important;
+    color: #ffdfa0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Stats already expands the profile in the React app. Initially show the
+     tier and holdings; reveal full LP/staked source data on request. */
+  .gb-player-status-strip:not([data-expanded="true"]) .gb-tree-status-sources {
+    display: none !important;
+  }
+  .gb-player-status-strip[data-expanded="true"] .gb-player-profile-content {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .gb-player-status-strip[data-expanded="true"] .gb-tree-status-sources {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 6px !important;
+    margin-top: 6px;
+    width: 100%;
+  }
+  .gb-player-status-strip[data-expanded="true"] .gb-tree-status-sources > span {
+    box-sizing: border-box;
+    display: grid !important;
+    grid-template-columns: minmax(74px, 100px) minmax(0, 1fr) !important;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px !important;
+    min-width: 0;
+    min-height: 40px;
+    text-align: left !important;
+  }
+  .gb-player-status-strip[data-expanded="true"] .gb-tree-status-sources > span > strong {
+    color: #c5ffe0;
+    font-size: 10px !important;
+    line-height: 1.25;
+    letter-spacing: .2px;
+  }
+  .gb-player-status-strip[data-expanded="true"] .gb-tree-status-sources > span > span {
+    color: #effff4;
+    font: 700 12px/1.35 system-ui, sans-serif !important;
+    text-align: right;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Keep the game entry directly below the profile, rather than expanding
+     the rank cards into an oversized pre-game dashboard. */
+  .gb-player-status-strip .gb-rank-showcase-copy { display: none !important; }
+}

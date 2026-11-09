@@ -9,6 +9,7 @@ on:
       - "netlify.toml"
       - "test/garden-bot-same-origin-preview.test.mjs"
       - "scripts/qa-garden-bot-same-origin.mjs"
+      - "scripts/qa-garden-bot-active-viewport.mjs"
       - "scripts/qa-garden-bot-compact-viewport.mjs"
       - "test/garden-bot-compact-viewport.test.mjs"
       - ".github/workflows/garden-bot-same-origin.yml"
@@ -54,6 +55,8 @@ jobs:
         run: node scripts/qa-garden-bot-same-origin.mjs
       - name: Verify all five cards and both Growth meters fit phone viewports
         run: node scripts/qa-garden-bot-compact-viewport.mjs
+      - name: Validate all five active-match cards inside phone viewport
+        run: node scripts/qa-garden-bot-active-viewport.mjs
       - name: Save screenshots
         if: always()
         uses: actions/upload-artifact@v4

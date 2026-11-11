@@ -1,8 +1,9 @@
+import {beforeArcadeHandoff} from "./arcade-share-normalize.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-const read = name => readFileSync("public/battle/assets/" + name, "utf8");
+const read = name => beforeArcadeHandoff(readFileSync("public/battle/assets/" + name, "utf8"));
 const oldGuard = 'if(!Number.isInteger(r)||r<=0||r>15)return!1;';
 const newGuard = oldGuard.replace("r>15", "r>31");
 const oldPackage = "0x053f4cf0bd41ba3340a0580f4ae1aaca18656ba0032eb3e920de554309d97755", currentPackage = "0x4a77289a2cd3d54c18f16a17cc7fe7b8890322e60e566df8683391d5a479f7ec";

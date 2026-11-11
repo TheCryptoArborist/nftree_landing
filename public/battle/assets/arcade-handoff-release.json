@@ -1,0 +1,17 @@
+{
+  "index-tree-lock-v16.js": {
+    "baseline": "e58caebfa8f842551079471865a3fccd3a9117889689c12b4e424365d592ce8e",
+    "output": "4e7baab3dcbd0d9fcf638698a8969a0b48ae9a5df48d447a0dc3dbb72c62840a",
+    "scope": "Result modal only"
+  },
+  "garden-bot-same-origin-preview.js": {
+    "baseline": "ec078c940b92037848d0264b94d7e0b244e8501e58605e3429cd12743db81afd",
+    "output": "d619cdd7c4b298d5126b58300973cbfbaf6f507980f65690ed137cf3aa108909",
+    "scope": "Result modal only"
+  },
+  "pvp-mobile-preview.js": {
+    "baseline": "ae43218e4519539e7739f89c0f449df1978052a1d3659dff300b87a972ce698f",
+    "output": "bf4978f29931900447ac96d731bc7305d11c2a98114cc9955af0c36950051c50",
+    "scope": "Result modal only"
+  }
+}

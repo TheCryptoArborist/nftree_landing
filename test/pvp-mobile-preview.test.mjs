@@ -1,13 +1,14 @@
+import {beforeArcadeHandoff} from "./arcade-share-normalize.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildPvpPreview } from "../scripts/pvp-mobile-patches.mjs";
 const read = p => readFileSync(p, "utf8");
-const original = read("public/battle/assets/index-tree-lock-v16.js");
-const preview = read("public/battle/assets/pvp-mobile-preview.js");
+const original = beforeArcadeHandoff(read("public/battle/assets/index-tree-lock-v16.js"));
+const preview = beforeArcadeHandoff(read("public/battle/assets/pvp-mobile-preview.js"));
 function section(s, start, end) { const a=s.indexOf(start),b=s.indexOf(end,a); assert.ok(a>=0&&b>a);return s.slice(a,b); }
 test("PvP preview is reproducibly generated from shipped game plus approved UI", () => {
-  assert.equal(preview, buildPvpPreview(original, read("public/battle/assets/garden-bot-same-origin-preview.js")));
+  assert.equal(preview, buildPvpPreview(original, beforeArcadeHandoff(read("public/battle/assets/garden-bot-same-origin-preview.js"))));
 });
 test("entire wallet/provider, transaction construction, queue, refund and timeout handlers are byte-identical", () => {
   for (const [a,b] of [["function LK(","function _A()"],["sP=async()=>",",x1=async()=>"],["Xm=async()=>",",oP=async()=>"],["iP=async()=>",",aP=async()=>"],["aP=async()=>",",lP=async()=>"],["cP=async I=>",";p.useEffect(()=>{r!=null&&r.battleId"]]) {

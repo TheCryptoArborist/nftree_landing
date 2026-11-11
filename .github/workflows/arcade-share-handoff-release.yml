@@ -1,0 +1,70 @@
+name: Release Garden result Arcade handoff
+on:
+  push:
+    branches: [feature/arcade-share-release]
+    paths: [.github/workflows/arcade-share-handoff-release.yml]
+permissions:
+  contents: write
+concurrency:
+  group: nftree-main-preserved-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: nft
+      - uses: actions/checkout@v4
+        with:
+          repository: TheCryptoArborist/gardenbattles
+          ref: 12f27810c074e06670908185daf827710318ad8e
+          path: garden
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: TheCryptoArborist/tree-token.xyz
+          ref: 2809b9a83518435b41ce3b92a10eeba045644299
+          path: arcade
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build only completed-result UI changes
+        working-directory: garden
+        run: |
+          test "$(git -C ../nft rev-parse HEAD)" = 0bb94fe85668ccd77dd8ab11e64ee7912fa542ef
+          node scripts/arcade-share/build.mjs ../nft/public/battle/assets ../arcade/scripts
+          for name in index-tree-lock-v16.js garden-bot-same-origin-preview.js pvp-mobile-preview.js arcade-share-handoff.js arcade-end-share-prompt.js arcade-result-share-builder.js; do
+            cp "dist/arcade-share/$name" "../nft/public/battle/assets/$name"
+          done
+          cp dist/arcade-share/build-report.json ../nft/public/battle/assets/arcade-handoff-release.json
+      - name: Validate the complete NFTree site
+        working-directory: nft
+        run: |
+          npm ci --no-audit --no-fund
+          npm run lint
+          npm test
+          npm run build
+          for name in index-tree-lock-v16.js garden-bot-same-origin-preview.js pvp-mobile-preview.js arcade-share-handoff.js arcade-end-share-prompt.js arcade-result-share-builder.js; do
+            node --check "public/battle/assets/$name"
+          done
+          git diff --check
+          node --input-type=module <<'JS'
+          import {execFileSync} from 'node:child_process';import assert from 'node:assert/strict';
+          const allowed=new Set(['index-tree-lock-v16.js','garden-bot-same-origin-preview.js','pvp-mobile-preview.js','arcade-share-handoff.js','arcade-end-share-prompt.js','arcade-result-share-builder.js','arcade-handoff-release.json'].map(n=>'public/battle/assets/'+n));
+          const changed=execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);const added=execFileSync('git',['ls-files','--others','--exclude-standard'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
+          for(const p of [...changed,...added])assert(allowed.has(p),'Unexpected site change: '+p);
+          JS
+      - name: Commit full-site source through Git-connected main
+        working-directory: nft
+        run: |
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = 0bb94fe85668ccd77dd8ab11e64ee7912fa542ef
+          git config user.name Codex
+          git config user.email codex@openai.com
+          git add public/battle/assets/index-tree-lock-v16.js public/battle/assets/garden-bot-same-origin-preview.js public/battle/assets/pvp-mobile-preview.js public/battle/assets/arcade-share-handoff.js public/battle/assets/arcade-end-share-prompt.js public/battle/assets/arcade-result-share-builder.js public/battle/assets/arcade-handoff-release.json
+          git commit -m "Connect Garden Bot and PvP endings to saved-run Arcade sharing"
+          git push origin HEAD:main
+          git rev-parse HEAD
